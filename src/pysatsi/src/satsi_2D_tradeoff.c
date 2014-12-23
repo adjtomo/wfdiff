@@ -17,11 +17,12 @@
 //   Grzegorz Kwiatek [GK] <kwiatek@gfz-potsdam.de> <http://www.sejsmologia-gornicza.pl/about>
 //   Patricia Martinez-Garzon [PM] <patricia@gfz-potsdam.de>
 //
+//   Code updated to C99 standard.
+//
 // Lion Krischer <krischer@geophysik.uni-muenchen.de>, Dez. 2014:
 //   * Refactoring to allow usage as a library.
 //   * Removed separate reading of first line which most likely was a bug.
 //
-//   Code updated to C99 standard.
 //
 // $Last revision: 1.0 $  $Date: 2012/07/11  $
 //-------------------------------------------------------------------------------------------------

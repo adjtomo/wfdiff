@@ -42,6 +42,7 @@ lib = Extension('satsi',
                     os.path.join(src, 'stridip.c'),
                     os.path.join(src, 'switchsub.c'),
                     os.path.join(src, 'satsi_2D_tradeoff.c'),
+                    os.path.join(src, 'satsi_2D.c'),
                 ])
 
 

@@ -12,14 +12,18 @@
 // Original code:
 //   Jeanne Hardebeck <jhardebeck@usgs.gov>
 //   available at: http://earthquake.usgs.gov/research/software/
-// 
+//
 // Corrections to the original code:
 //   Grzegorz Kwiatek [GK] <kwiatek@gfz-potsdam.de> <http://www.sejsmologia-gornicza.pl/about>
 //   Patricia Martinez-Garzon [PM] <patricia@gfz-potsdam.de>
-// 
-//   Code updated to C99 standard. 
 //
-// $Last revision: 1.0 $  $Date: 2012/07/11  $  
+//   Code updated to C99 standard.
+//
+// Lion Krischer <krischer@geophysik.uni-muenchen.de>, Dez. 2014:
+//   * Refactoring to allow usage as a library.
+//   * Removed separate reading of first line which most likely was a bug.
+//
+// $Last revision: 1.0 $  $Date: 2012/07/11  $
 //-------------------------------------------------------------------------------------------------
 
 #define TODEG 57.29577951
@@ -49,16 +53,69 @@ void sprsax(double sa[], int ija[], double x[], double b[], int m, int n);
 void leasq_sparse(int a_ija[], double a_sa[], int d_ija[], double d_sa[], int m,
     int n, int p, double x[], double b[]);
 
+
+// 2D stress tensor.
+struct stress_tensor_2D {
+  int X;
+  int Y;
+  double See;
+  double Sen;
+  double Seu;
+  double Snn;
+  double Snu;
+  double Suu;
+};
+
+
+// for each input focal mechanism this struct represents the magnitude of
+// shear traction vector and deviation between predicted and calculated slip.
+struct results_for_input_mt {
+  double ddir;
+  double dip;
+  double rake;
+  double fit_angle;
+  double mag_tau;
+  int X;
+  int Y;
+};
+
+
+// Output structure.
+struct satsi_2D_result {
+  double fit_angle_mean; // Fit angle mean
+  double fit_angle_std; // Fit angle standard deviation
+  double mag_mean; // Tangential stress mean.
+  double mag_std; // Tangential stress standard deviation.
+  struct stress_tensor_2D *tensors;
+  int tensor_count;
+  struct results_for_input_mt *results;
+  int result_count;
+};
+
+
+// Function to free the result struct.
+void free_satsi_2D_result(struct satsi_2D_result *result) {
+  free(result->tensors);
+  free(result->results);
+}
+
+
 //-------------------------------------------------------------------------------------------------
-int main(argc, argv)
-  /* slickenside inversion program */
-  int argc; /* argument count */
-  char **argv; /* argument string */
-  {
+  // Parameters:
+  //   x_in: Integer array with the x coordinate of the values.
+  //   y_in: Integer array with the y coordinate of the values.
+  //   ddir_in: Double array containing the dip direction.
+  //   dip_in: Double array containing the dip angle.
+  //   rake_in: Double arrays containing the rake angles.
+  //   input_length: The length of the arrays. All must have the same length!
+  //   cwt: The damping parameter.
+struct satsi_2D_result satsi_2D(
+  int *x_in, int *y_in, double *ddir_in, double *dip_in, double *rake_in,
+  int input_length, double cwt)
+{
   double *ddir, *dip, *rake; /* focal mechanism data */
   int *x, *y; /* focal mechanism bins */
   int nobs, nloc, nrows, nlocfill; /* number of observations, bins, rows */
-  double cwt; /* damping parameter */
   double *diag_sa, *amat_sa, *d_sa; /* inversion matrices in sparse matrix, */
   int *diag_ija, *amat_ija, *d_ija; /*      row-indexed form */
   int *loclist, lindex, nx, ny, index; /* book-keeping, which bins where in matrix*/
@@ -69,11 +126,13 @@ int main(argc, argv)
   double angavg, angstd; /* average and standard deviation of fit angle */
   double magavg, magstd; /* same for tangential stress size */
   double *slick_pre; /* predicted slip vector */
-  char line[80]; /* character line */
-  FILE *fpin; /* input file pointer */
-  FILE *fpout; /* output file pointer */
   int i, j, k, k2, m, n, p; /* dummy variables */
   double z, z2, z3, temp[5], ls1, ls2, ls3; /* more dummy variables */
+
+  // Current array index.
+  int cur_idx = 0;
+  struct satsi_2D_result result;
+  int output_stress_tensor_count;
 
   ddir = (double *) malloc(MAXDATA * sizeof(double));
   dip = (double *) malloc(MAXDATA * sizeof(double));
@@ -94,31 +153,6 @@ int main(argc, argv)
   slick_pre = (double *) malloc(n * sizeof(double));
   loclist = (int *) malloc(MAXX * MAXY * sizeof(int));
 
-  /* get file pointers */
-  --argc;
-  ++argv;
-  if (argc != 3) /* [PM 11.04.2013] changed from < to != */
-    {
-    printf("usage: satsi_2D.exe data_file outfile damping\n");
-    return -3001; /* [PM 11.04.2013] changed from -1 to -3001*/
-    }
-  fpin = fopen(*argv, "r");
-  if (fpin == NULL )
-    {
-    printf("unable to open %s.\n", *argv);
-    return -3002; /* [PM 11.04.2013] changed from -2 to -3002*/
-    }
-  ++argv;
-  fpout = fopen(*argv, "a");
-  if (fpout == NULL )
-    {
-    printf("unable to open %s.\n", *argv);
-    return -3003; /* [PM 11.04.2013] changed from -3 to -3003*/
-    }
-  ++argv;
-  sscanf(*argv, "%lf", &cwt);
-  fgets(line, 80, fpin);
-
   for (i = 0; i < 3 * MAXDATA; i++)
     slick[i] = 0;
   for (i = 0; i < 3 * MAXDATA + 25 * MAXBOX; i++)
@@ -134,9 +168,15 @@ int main(argc, argv)
   nobs = 0;
   nloc = 0;
   index = 0;
-  while (fscanf(fpin, "%d %d %lf %lf %lf", &x[nobs], &y[nobs], &ddir[nobs],
-      &dip[nobs], &rake[nobs]) != EOF)
-    {
+
+  while (cur_idx < input_length) {
+    x[nobs] = x_in[cur_idx];
+    y[nobs] = y_in[cur_idx];
+    ddir[nobs] = ddir_in[cur_idx];
+    dip[nobs] = dip_in[cur_idx];
+    rake[nobs] = rake_in[cur_idx];
+    cur_idx++;
+
     j = 3 * nobs;
     z = ddir[nobs] / TODEG;
     z2 = dip[nobs] / TODEG;
@@ -375,30 +415,52 @@ int main(argc, argv)
   /* solve equations via linear least squares */
   leasq_sparse(amat_ija, amat_sa, d_ija, d_sa, m, n, p, stress, slick);
 
-  fprintf(fpout, "\nCOORDINATES ARE EAST,NORTH,UP.\n");
-  fprintf(fpout, "stress tensors are:\n");
-  fprintf(fpout, "X Y See Sen Seu Snn Snu Suu\n");
+  output_stress_tensor_count = 0;
+  /* Count the amount of output stress tensors */
+  for (nx = 0; nx < MAXX; nx++)
+    for (ny = 0; ny < MAXY; ny++)
+      if ((loclist[MAXY * nx + ny] > -999)
+          && (loclist[MAXY * nx + ny] < nlocfill))
+        {
+          output_stress_tensor_count++;
+        }
 
+  // Allocate space for the output tensors.
+  result.tensors = (struct stress_tensor_2D *) malloc (output_stress_tensor_count * sizeof(struct stress_tensor_2D));
+  result.tensor_count = output_stress_tensor_count;
+
+
+  // Write the output tensors.
+  cur_idx = 0;
   for (nx = 0; nx < MAXX; nx++)
     for (ny = 0; ny < MAXY; ny++)
       if ((loclist[MAXY * nx + ny] > -999)
           && (loclist[MAXY * nx + ny] < nlocfill))
         {
         k = 5 * loclist[MAXY * nx + ny];
-        fprintf(fpout, "%3d %3d ", nx, ny);
-        fprintf(fpout, "%9.6f %9.6f %9.6f ", stress[k], stress[k + 1],
-            stress[k + 2]);
-        fprintf(fpout, "%9.6f %9.6f %9.6f\n", stress[k + 3], stress[k + 4],
-            -(stress[k] + stress[k + 3]));
-        }
-  fprintf(fpout, "\n");
 
-  fprintf(fpout, "\ndip direction, dip, rake, fit angle, mag tau, X, Y\n");
+        result.tensors[cur_idx].X = nx;
+        result.tensors[cur_idx].Y = ny;
+        result.tensors[cur_idx].See = stress[k];
+        result.tensors[cur_idx].Sen = stress[k + 1];
+        result.tensors[cur_idx].Seu = stress[k + 2];
+        result.tensors[cur_idx].Snn = stress[k + 3];
+        result.tensors[cur_idx].Snu = stress[k + 4];
+        result.tensors[cur_idx].Suu = -(stress[k] + stress[k + 3]);
+
+        cur_idx++;
+        }
+
   sprsax(amat_sa, amat_ija, stress, slick_pre, m, n);
   angavg = 0.;
   angstd = 0.;
   magavg = 0.;
   magstd = 0.;
+
+
+  result.results = (struct results_for_input_mt *) malloc (nobs * sizeof(struct results_for_input_mt));
+  result.result_count = nobs;
+
   for (i = 0; i < nobs; i++)
     {
     ls1 = sqrt(
@@ -416,9 +478,16 @@ int main(argc, argv)
     angstd += z * z;
     magavg += ls2;
     magstd += ls2 * ls2;
-    fprintf(fpout, "%7.1f  %7.1f  %7.1f  %7.1f %7.2f %4d %4d\n", ddir[i],
-        dip[i], rake[i], z, ls2, x[i], y[i]);
+
+    result.results[i].ddir = ddir[i];
+    result.results[i].dip = dip[i];
+    result.results[i].rake = rake[i];
+    result.results[i].fit_angle = z;
+    result.results[i].mag_tau = ls2;
+    result.results[i].X = x[i];
+    result.results[i].Y = y[i];
     }
+
   z3 = (double) nobs - 1;
   angstd = angstd - (angavg * angavg / nobs);
   angstd = angstd / z3;
@@ -428,9 +497,11 @@ int main(argc, argv)
   magstd = magstd / z3;
   magstd = sqrt(magstd);
   magavg = magavg / nobs;
-  fprintf(fpout, "\nfit angle mean= %f standard deviation= %f\n", angavg,
-      angstd);
-  fprintf(fpout, "avg tau= %f , std. dev.= %f\n", magavg, magstd);
+
+  result.fit_angle_mean = angavg;
+  result.fit_angle_std = angstd;
+  result.mag_mean = magavg;
+  result.mag_std = magstd;
 
   free(ddir);
   free(dip);
@@ -447,5 +518,5 @@ int main(argc, argv)
   free(slick_pre);
   free(loclist);
 
-  return 0; // [GK 2013.03.03] Added default return value for the purpose of MSATSI;
+  return result;
   }

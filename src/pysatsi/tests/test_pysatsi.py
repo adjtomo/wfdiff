@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 from matplotlib.testing.compare import compare_images as mpl_compare_images
 import os
 
+from pysatsi import read_fault_plane_solutions
+
 
 # Most generic way to get the data folder path.
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(
@@ -70,3 +72,32 @@ def images_are_identical(image_name, temp_dir, dpi=None):
     if result is not None:
         print(result)
     assert result is None
+
+
+def test_fault_plane_solutions_reading():
+    """
+    Tests the parsing of fault plane solution text files to pandas data
+    frame objects.
+    """
+    # Define the expected data.
+    test_files = [
+        {"filename":  os.path.join(DATA_DIR, "example0D",
+                                   "INPUT_example0D.txt"),
+         "count": 150, "header": ["x", "y", "dip", "dip_angle", "rake"]},
+        {"filename":  os.path.join(DATA_DIR, "example1D",
+                                   "INPUT_example1D.txt"),
+         "count": 1890, "header": ["x", "y", "dip", "dip_angle", "rake"]},
+        {"filename":  os.path.join(DATA_DIR, "example2D",
+                                   "INPUT_example2D.txt"),
+         "count": 3256,
+         "header": ["x", "y", "dip", "dip_angle", "rake"]},
+        {"filename":  os.path.join(DATA_DIR, "example3D",
+                                   "INPUT_example3D.txt"),
+         "count": 7500,
+         "header": ["x", "y", "z", "t", "dip", "dip_angle", "rake"]},
+    ]
+
+    for params in test_files:
+        df = read_fault_plane_solutions(params["filename"])
+        assert df.columns.tolist() == params["header"]
+        assert len(df) == params["count"]

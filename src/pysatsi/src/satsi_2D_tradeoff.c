@@ -73,7 +73,6 @@ int satsi_2D_tradeoff(argc, argv)
   double mech_misfit, mvar; /* mechanism misfit, model variance */
   double *stress_len; /* stress field model length (vector) */
   double *slick_pre; /* predicted slip vector */
-  char line[80]; /* character line */
   FILE *fpin; /* input file pointer */
   FILE *fpout; /* output file pointer */
   int i, j, k, k2, m, n, p; /* dummy variables */
@@ -117,7 +116,6 @@ int satsi_2D_tradeoff(argc, argv)
   }
   ++argv;
   sscanf(*argv, "%lf", &cwt);
-  fgets(line, 80, fpin);
 
   for (i = 0; i < 3 * MAXDATA; i++)
     slick[i] = 0;

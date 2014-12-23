@@ -122,8 +122,21 @@ def calculate_2D_tradeoff(fault_plane_solutions):
         tradeoffs.append(misfit)
         model_variances.append(variance)
 
-    return {
-        "damping_value": np.float64(damp_parameters),
+    ret_val = {
+        "damping_candidates": np.float64(damp_parameters),
         "data_misfit": np.float64(tradeoffs),
-        "model_length": np.float64(model_variances),
-    }
+        "model_length": np.float64(model_variances)}
+
+    # Normalization
+    X = ret_val["data_misfit"]
+    Y = ret_val["model_length"]
+    XX = (X - X.min()) / X.ptp()
+    YY = (Y - Y.min()) / Y.ptp()
+    R = np.sqrt (YY ** 2 + XX ** 2)
+
+    # Find the infliction point based on the assumptions its a hyperbola.
+    idx = np.argmin(R)
+    ret_val["selected_damping_value_index"] = idx
+    ret_val["selected_damping_value"] = ret_val["damping_candidates"][idx]
+
+    return ret_val

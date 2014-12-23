@@ -35,6 +35,13 @@ lib = Extension('satsi',
                 # Be careful with the order.
                 sources=[
                     os.path.join(src, 'leasq_sparse.c'),
+                    os.path.join(src, 'dirplg.c'),
+                    os.path.join(src, 'eigen.c'),
+                    os.path.join(src, 'myrand.c'),
+                    os.path.join(src, 'sort.c'),
+                    os.path.join(src, 'stridip.c'),
+                    os.path.join(src, 'switchsub.c'),
+                    os.path.join(src, 'satsi_2D_tradeoff.c'),
                 ])
 
 

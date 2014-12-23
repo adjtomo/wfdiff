@@ -12,14 +12,18 @@
 // Original code:
 //   Jeanne Hardebeck <jhardebeck@usgs.gov>
 //   available at: http://earthquake.usgs.gov/research/software/
-// 
+//
 // Corrections to the original code:
 //   Grzegorz Kwiatek [GK] <kwiatek@gfz-potsdam.de> <http://www.sejsmologia-gornicza.pl/about>
 //   Patricia Martinez-Garzon [PM] <patricia@gfz-potsdam.de>
-// 
-//   Code updated to C99 standard. 
 //
-// $Last revision: 1.0 $  $Date: 2012/07/11  $  
+// Significant refactoring to allow usage as a library:
+//   Lion Krischer <krischer@geophysik.uni-muenchen.de>, 2014
+//
+//
+//   Code updated to C99 standard.
+//
+// $Last revision: 1.0 $  $Date: 2012/07/11  $
 //-------------------------------------------------------------------------------------------------
 
 #define TODEG 57.29577951
@@ -50,7 +54,7 @@ void leasq_sparse(int a_ija[], double a_sa[], int d_ija[], double d_sa[], int m,
     int n, int p, double x[], double b[]);
 
 //-------------------------------------------------------------------------------------------------
-int main(argc, argv)
+int satsi_2D_tradeoff(argc, argv)
   /* slickenside inversion program */
   int argc; /* argument count */
   char **argv; /* argument string */

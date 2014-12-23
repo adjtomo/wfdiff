@@ -31,10 +31,16 @@ def read_fault_plane_solutions(filename):
     else:
         raise PysatsiError("fault plane solutions file has neither 5 nor 7 "
                            "columns.")
-    # All the C routines use double precision so values will be double
-    # precision from the beginning.
     df = pandas.io.parsers.read_csv(filename, sep=" ", skipinitialspace=True,
                                     names=headers, dtype=np.float64)
+    # Convert coordinates to integers to match the input of the SATSI C
+    # routines. Cannot be done during reading as they are specified as
+    # floats in the files.
+    df["x"] = np.int32(np.round(df["x"]))
+    df["y"] = np.int32(np.round(df["x"]))
+    if "z" in df and "t" in df:
+        df["z"] = np.int32(np.round(df["z"]))
+        df["t"] = np.int32(np.round(df["t"]))
     return df
 
 

@@ -15,6 +15,7 @@ import inspect
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.testing.compare import compare_images as mpl_compare_images
+import numpy as np
 import os
 
 from pysatsi import read_fault_plane_solutions
@@ -101,3 +102,5 @@ def test_fault_plane_solutions_reading():
         df = read_fault_plane_solutions(params["filename"])
         assert df.columns.tolist() == params["header"]
         assert len(df) == params["count"]
+        assert df["x"].dtype.type is np.int32
+        assert df["dip"].dtype.type is np.float64

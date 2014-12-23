@@ -52,12 +52,13 @@ def calculate_tradeoff_curve(fault_plane_solutions,
     :param time_space_damping_ratio:
     """
     if len(fault_plane_solutions.columns) == 5:
-        c_satsi_interface.calculate_2D_tradeoff(fault_plane_solutions)
+        tc = c_satsi_interface.calculate_2D_tradeoff(fault_plane_solutions)
     elif len(fault_plane_solutions.columns) == 7:
         raise NotImplementedError
     else:
         raise PysatsiError("Invalid number of columns in the fault plane "
                            "solutions data frame.")
+    return tc
 
 
 

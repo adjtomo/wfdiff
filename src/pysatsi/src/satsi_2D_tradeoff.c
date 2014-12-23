@@ -66,13 +66,13 @@ struct satsi_2D_tradeoff_result {
   // Parameters:
   //   x_in: Integer array with the x coordinate of the values.
   //   y_in: Integer array with the y coordinate of the values.
-  //   dip_in: Double array containing the dip values.
-  //   ddir_in: Double array containing the dip angles.
+  //   ddir_in: Double array containing the dip direction.
+  //   dip_in: Double array containing the dip angle.
   //   rake_in: Double arrays containing the rake angles.
   //   input_length: The length of the arrays. All must have the same length!
   //   cwt: The damping parameter.
 struct satsi_2D_tradeoff_result satsi_2D_tradeoff(
-  int *x_in, int *y_in, double *dip_in, double *ddir_in, double *rake_in,
+  int *x_in, int *y_in, double *ddir_in, double *dip_in, double *rake_in,
   int input_length, double cwt)
 {
   double ddir, dip, rake; /* focal mechanism data */

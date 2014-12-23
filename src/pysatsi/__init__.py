@@ -32,7 +32,7 @@ class PysatsiWarning(UserWarning):
 
 # Import pysatsi things beneath the exception and warning definitions to avoid
 # circular imports.
-from .satsi import read_fault_plane_solutions  # NOQA
+from .satsi import calculate_tradeoff_curve, read_fault_plane_solutions  # NOQA
 
 
 __version__ = "0.0.0"

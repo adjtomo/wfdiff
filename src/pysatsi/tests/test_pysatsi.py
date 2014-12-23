@@ -18,7 +18,7 @@ from matplotlib.testing.compare import compare_images as mpl_compare_images
 import numpy as np
 import os
 
-from pysatsi import read_fault_plane_solutions
+from pysatsi import calculate_tradeoff_curve, read_fault_plane_solutions
 
 
 # Most generic way to get the data folder path.
@@ -104,3 +104,12 @@ def test_fault_plane_solutions_reading():
         assert len(df) == params["count"]
         assert df["x"].dtype.type is np.int32
         assert df["dip"].dtype.type is np.float64
+
+
+def test_calculate_2D_tradeoff_curve():
+    """
+    Tests the calculation of the 2D tradeoff curve.
+    """
+    input_file = os.path.join(DATA_DIR, "example1D", "INPUT_example1D.txt")
+    fps = read_fault_plane_solutions(input_file)
+    calculate_tradeoff_curve(fps)

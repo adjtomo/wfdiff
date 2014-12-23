@@ -15,6 +15,7 @@ import numpy as np
 import pandas.io.parsers
 
 from . import PysatsiError
+from . import c_satsi_interface
 
 
 def read_fault_plane_solutions(filename):
@@ -37,11 +38,27 @@ def read_fault_plane_solutions(filename):
     # routines. Cannot be done during reading as they are specified as
     # floats in the files.
     df["x"] = np.int32(np.round(df["x"]))
-    df["y"] = np.int32(np.round(df["x"]))
+    df["y"] = np.int32(np.round(df["y"]))
     if "z" in df and "t" in df:
         df["z"] = np.int32(np.round(df["z"]))
         df["t"] = np.int32(np.round(df["t"]))
     return df
+
+
+def calculate_tradeoff_curve(fault_plane_solutions,
+                             time_space_damping_ratio=1.0):
+    """
+    :param fault_plane_solutions:
+    :param time_space_damping_ratio:
+    """
+    if len(fault_plane_solutions.columns) == 5:
+        c_satsi_interface.calculate_2D_tradeoff(fault_plane_solutions)
+    elif len(fault_plane_solutions.columns) == 7:
+        raise NotImplementedError
+    else:
+        raise PysatsiError("Invalid number of columns in the fault plane "
+                           "solutions data frame.")
+
 
 
 def invert_stress(fault_plane_solutions, damping=True,

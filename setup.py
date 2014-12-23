@@ -7,6 +7,7 @@ import os
 
 from setuptools import find_packages
 from setuptools import setup
+from setuptools.extension import Extension
 
 
 changelog = os.path.join(os.path.dirname(os.path.abspath(
@@ -27,6 +28,16 @@ def read(*names, **kwargs):
         os.path.join(os.path.dirname(__file__), *names),
         encoding=kwargs.get("encoding", "utf8")).read()
 
+
+src = os.path.join('src', 'pysatsi', 'src')
+lib = Extension('satsi',
+                libraries=["M"],
+                # Be careful with the order.
+                sources=[
+                    os.path.join(src, 'leasq_sparse.c'),
+                ])
+
+
 setup(
     name="pysatsi",
     version="0.0.0",
@@ -42,6 +53,8 @@ setup(
                 for i in glob.glob("src/*.py")],
     include_package_data=True,
     zip_safe=False,
+    ext_package='pysatsi.lib',
+    ext_modules=[lib],
     classifiers=[
         # complete classifier list:
         # http://pypi.python.org/pypi?%3Aaction=list_classifiers

@@ -1,9 +1,11 @@
 *.egg-info
 *.pyc
+/build
 */__pycache__
 /doc/index.rst
 /doc/_build/*
 /doc/index_files/*
+/src/pysatsi/lib/*.so
 *.ipynb_checkpoints*
 dist/*
 .coverage

@@ -1,0 +1,3 @@
+include src/pysatsi/tests/data/*
+include src/pysatsi/tests/baseline_images/*
+include *.md

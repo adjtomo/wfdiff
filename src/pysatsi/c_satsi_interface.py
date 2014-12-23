@@ -17,8 +17,14 @@ from future.utils import native_str
 import ctypes as C
 import glob
 import inspect
+import itertools
 import numpy as np
+import multiprocessing
 import os
+
+
+# Don't use more than 8 cores to avoid funny situations on clusters.
+MAX_NUMBER_OF_CORES = min(multiprocessing.cpu_count(), 8)
 
 
 LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(
@@ -76,23 +82,46 @@ clibsatsi.satsi_2D_tradeoff.argtypes = [
 clibsatsi.satsi_2D_tradeoff.restype = Satsi2DTradeoffResult
 
 
+def _apply_calculate_2D_tradeoff(args):
+    fault_plane_solutions, damping = args
+    result = clibsatsi.satsi_2D_tradeoff(
+        fault_plane_solutions["x"].values,
+        fault_plane_solutions["y"].values,
+        fault_plane_solutions["dip"].values,
+        fault_plane_solutions["dip_angle"].values,
+        fault_plane_solutions["rake"].values,
+        len(fault_plane_solutions),
+        float(damping))
+    return (result.mech_misfit, result.mvar)
+
+
 def calculate_2D_tradeoff(fault_plane_solutions):
+    """
+    Calculates the tradeoff between misfit and model length in parallel.
+
+    It scales almost linear with the amount of processors, the cost of
+    forking is definitely worth it. Using hyperthreading is also worth it.
+    It thus always uses the amount of physical cores on a machine up to a
+    maximum of 8 to avoid funny situations on clusters.
+
+    :param fault_plane_solutions:
+    """
     damp_parameters = [0.4, 0.6, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.6, 1.8,
                        2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.5, 4.0, 5.0, 6.0]
     tradeoffs = []
     model_variances = []
 
-    for damp in damp_parameters:
-        result = clibsatsi.satsi_2D_tradeoff(
-            fault_plane_solutions["x"].values[1:],
-            fault_plane_solutions["y"].values[1:],
-            fault_plane_solutions["dip"].values[1:],
-            fault_plane_solutions["dip_angle"].values[1:],
-            fault_plane_solutions["rake"].values[1:],
-            len(fault_plane_solutions) - 1,
-            float(damp))
-        tradeoffs.append(result.mech_misfit)
-        model_variances.append(result.mvar)
+    # Apply in parallel as potentially pretty slow.
+    with multiprocessing.Pool(
+            processes=min(len(damp_parameters), MAX_NUMBER_OF_CORES)) as pool:
+        result = pool.map(_apply_calculate_2D_tradeoff,
+                          list(zip(itertools.repeat(fault_plane_solutions),
+                               damp_parameters)))
+
+    for misfit, variance in result:
+        tradeoffs.append(misfit)
+        model_variances.append(variance)
+
     return {
         "damping_value": np.float64(damp_parameters),
         "data_misfit": np.float64(tradeoffs),

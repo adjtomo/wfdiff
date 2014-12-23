@@ -17,9 +17,9 @@
 //   Grzegorz Kwiatek [GK] <kwiatek@gfz-potsdam.de> <http://www.sejsmologia-gornicza.pl/about>
 //   Patricia Martinez-Garzon [PM] <patricia@gfz-potsdam.de>
 //
-// Significant refactoring to allow usage as a library:
-//   Lion Krischer <krischer@geophysik.uni-muenchen.de>, 2014
-//
+// Lion Krischer <krischer@geophysik.uni-muenchen.de>, Dez. 2014:
+//   * Refactoring to allow usage as a library.
+//   * Removed separate reading of first line which most likely was a bug.
 //
 //   Code updated to C99 standard.
 //
@@ -53,16 +53,31 @@ void sprsax(double sa[], int ija[], double x[], double b[], int m, int n);
 void leasq_sparse(int a_ija[], double a_sa[], int d_ija[], double d_sa[], int m,
     int n, int p, double x[], double b[]);
 
+
+// Output structure.
+struct satsi_2D_tradeoff_result {
+  double mech_misfit; /* mechanism misfit */
+  double mvar; /* model variance */
+};
+
+
 //-------------------------------------------------------------------------------------------------
-int satsi_2D_tradeoff(argc, argv)
   /* slickenside inversion program */
-  int argc; /* argument count */
-  char **argv; /* argument string */
+  // Parameters:
+  //   x_in: Integer array with the x coordinate of the values.
+  //   y_in: Integer array with the y coordinate of the values.
+  //   dip_in: Double array containing the dip values.
+  //   ddir_in: Double array containing the dip angles.
+  //   rake_in: Double arrays containing the rake angles.
+  //   input_length: The length of the arrays. All must have the same length!
+  //   cwt: The damping parameter.
+struct satsi_2D_tradeoff_result satsi_2D_tradeoff(
+  int *x_in, int *y_in, double *dip_in, double *ddir_in, double *rake_in,
+  int input_length, double cwt)
 {
   double ddir, dip, rake; /* focal mechanism data */
   int x, y; /* focal mechanism bins */
   int nobs, nloc, nrows; /* number of observations, bins, rows */
-  double cwt; /* damping parameter */
   double *diag_sa, *amat_sa, *d_sa, *dtemp_sa; /* inversion matrices in sparse matrix, */
   int *diag_ija, *amat_ija, *d_ija; /*      row-indexed form */
   int *loclist, nx, ny, index; /* book-keeping, which bins where in matrix*/
@@ -73,10 +88,12 @@ int satsi_2D_tradeoff(argc, argv)
   double mech_misfit, mvar; /* mechanism misfit, model variance */
   double *stress_len; /* stress field model length (vector) */
   double *slick_pre; /* predicted slip vector */
-  FILE *fpin; /* input file pointer */
-  FILE *fpout; /* output file pointer */
   int i, j, k, k2, m, n, p; /* dummy variables */
   double z, z2, z3, temp[5]; /* more dummy variables */
+
+  // Current array index.
+  int cur_idx = 0;
+  struct satsi_2D_tradeoff_result result;
 
   n = 3 * MAXDATA + 25 * MAXBOX;
   diag_sa = (double *) malloc(n * sizeof(double));
@@ -95,28 +112,6 @@ int satsi_2D_tradeoff(argc, argv)
   slick_pre = (double *) malloc(n * sizeof(double));
   loclist = (int *) malloc(MAXX * MAXY * sizeof(int));
 
-  /* get file pointers */
-  --argc;
-  ++argv;
-  if (argc != 3) /* [PM 11.04.2013] changed from < to != */
-  {
-    printf("usage: satsi_2D_tradeoff.exe data_file output_file damping\n");
-    return -1001; /*  [PM 11.04.2013] changing from -1 to -1001 */
-  }
-  fpin = fopen(*argv, "r");
-  if (fpin == NULL ) {
-    printf("unable to open %s.\n", *argv);
-    return -1002; /*  [PM] changing of code */
-  }
-  ++argv;
-  fpout = fopen(*argv, "a");
-  if (fpout == NULL ) {
-    printf("unable to open %s.\n", *argv);
-    return -1003; /*  [PM] changing of code */
-  }
-  ++argv;
-  sscanf(*argv, "%lf", &cwt);
-
   for (i = 0; i < 3 * MAXDATA; i++)
     slick[i] = 0;
   for (i = 0; i < 3 * MAXDATA + 25 * MAXBOX; i++) {
@@ -131,7 +126,14 @@ int satsi_2D_tradeoff(argc, argv)
   nobs = 0;
   nloc = 0;
   index = 0;
-  while (fscanf(fpin, "%d %d %lf %lf %lf", &x, &y, &ddir, &dip, &rake) != EOF) {
+  while (cur_idx < input_length) {
+    x = x_in[cur_idx];
+    y = y_in[cur_idx];
+    ddir = ddir_in[cur_idx];
+    dip = dip_in[cur_idx];
+    rake = rake_in[cur_idx];
+    cur_idx++;
+
     j = 3 * nobs;
     z = ddir / TODEG;
     z2 = dip / TODEG;
@@ -361,8 +363,6 @@ int satsi_2D_tradeoff(argc, argv)
   mvar /= ((double) p);
   mvar = sqrt(mvar);
 
-  fprintf(fpout, "%g %g\n", mech_misfit, mvar);
-
   free(diag_sa);
   free(diag_ija);
   free(amat_sa);
@@ -375,5 +375,8 @@ int satsi_2D_tradeoff(argc, argv)
   free(slick_pre);
   free(loclist);
 
-  return 0; // [GK 2013.03.03] Added default return value;
+  result.mech_misfit = mech_misfit;
+  result.mvar = mvar;
+
+  return result;
 }

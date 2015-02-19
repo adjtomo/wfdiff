@@ -21,6 +21,7 @@ import itertools
 import numpy as np
 import multiprocessing
 import os
+import pandas
 
 
 # Don't use more than 8 cores to avoid funny situations on clusters.
@@ -51,11 +52,12 @@ def load_lib():
 clibsatsi = load_lib()
 
 
-# Results from the 2D satsi tradeoff calculation.
+# All header definitions go here!
+
+# Definitions for the Satsi 2D tradeoff calculation
 class Satsi2DTradeoffResult(C.Structure):
     _fields_ = [('mech_misfit', C.c_double),
                 ('mvar', C.c_double)]
-
 
 clibsatsi.satsi_2D_tradeoff.argtypes = [
     # x_in
@@ -77,9 +79,127 @@ clibsatsi.satsi_2D_tradeoff.argtypes = [
     C.c_int,
     # cwt (damping_parameter)
     C.c_double]
-
-
 clibsatsi.satsi_2D_tradeoff.restype = Satsi2DTradeoffResult
+
+
+# Definitions for Satsi 2D
+class StressTensor2D(C.Structure):
+    _fields_ = [
+        ('X', C.c_int),
+        ('Y', C.c_int),
+        ('See', C.c_double),
+        ('Sen', C.c_double),
+        ('Seu', C.c_double),
+        ('Snn', C.c_double),
+        ('Snu', C.c_double),
+        ('Suu', C.c_double)
+    ]
+
+
+class ResultsForInputMt2D(C.Structure):
+    _fields_ = [
+        ('ddir', C.c_double),
+        ('dip', C.c_double),
+        ('rake', C.c_double),
+        ('fit_angle', C.c_double),
+        ('mag_tau', C.c_double),
+        ('X', C.c_int),
+        ('Y', C.c_int)
+    ]
+
+
+class Satsi2DResult(C.Structure):
+    _fields_ = [
+        ('fit_angle_mean', C.c_double),
+        ('fit_angle_std', C.c_double),
+        ('mag_mean', C.c_double),
+        ('mag_std', C.c_double),
+        ('tensors', C.POINTER(StressTensor2D)),
+        ('tensor_count', C.c_int),
+        ('results', C.POINTER(ResultsForInputMt2D)),
+        ('result_count', C.c_int)
+    ]
+
+
+clibsatsi.satsi_2D.argtypes = [
+    # x_in
+    np.ctypeslib.ndpointer(dtype=np.int32, ndim=1,
+                           flags=native_str('C_CONTIGUOUS')),
+    # y_in
+    np.ctypeslib.ndpointer(dtype=np.int32, ndim=1,
+                           flags=native_str('C_CONTIGUOUS')),
+    # ddir_in
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1,
+                           flags=native_str('C_CONTIGUOUS')),
+    # dip_in
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1,
+                           flags=native_str('C_CONTIGUOUS')),
+    # rake_in
+    np.ctypeslib.ndpointer(dtype=np.float64, ndim=1,
+                           flags=native_str('C_CONTIGUOUS')),
+    # input_length
+    C.c_int,
+    # cwt (damping_parameter)
+    C.c_double]
+clibsatsi.satsi_2D.restype = Satsi2DResult
+
+
+def satsi_2d(fault_plane_solutions, damping):
+    """
+    Launches satsi 2D and parses the results to Python objects.
+
+    :param fault_plane_solutions:
+    :param damping:
+    :return:
+    """
+    result = clibsatsi.satsi_2D(
+        fault_plane_solutions["x"].values,
+        fault_plane_solutions["y"].values,
+        fault_plane_solutions["dip"].values,
+        fault_plane_solutions["dip_angle"].values,
+        fault_plane_solutions["rake"].values,
+        len(fault_plane_solutions),
+        float(damping))
+
+    # Use recarrays as an easy way to get a proper dataframe.
+    rec_array = np.empty(result.tensor_count, dtype=[
+        ("X", np.int32),
+        ("Y", np.int32),
+        ("See", np.float64),
+        ("Sen", np.float64),
+        ("Seu", np.float64),
+        ("Snn", np.float64),
+        ("Snu", np.float64),
+        ("Suu", np.float64)
+    ])
+    # This will copy the data thus making the original data save to free.
+    rec_array[:result.tensor_count] = result.tensors[:result.tensor_count]
+    stress_tensors = pandas.DataFrame(rec_array)
+
+    rec_array = np.empty(result.result_count, dtype=[
+        ("ddir", np.float64),
+        ("dip", np.float64),
+        ("rake", np.float64),
+        ("fit_angle", np.float64),
+        ("mag_tau", np.float64),
+        ("X", np.int32),
+        ("Y", np.int32),
+    ])
+
+    rec_array[:result.result_count] = result.results_for_input_mt_2D[
+        :result.result_count]
+    results = pandas.DataFrame(rec_array)
+
+    ret_val = {
+        "fit_angle_mean": result.fit_angle_mean,
+        "fit_angle_std": result.fit_angle_std,
+        "mag_mean": result.mag_mean,
+        "mag_std": result.mag_std,
+        "stress_tensors": stress_tensors,
+        "results": results
+    }
+
+    return ret_val
 
 
 def _apply_calculate_2D_tradeoff(args):
@@ -111,7 +231,8 @@ def calculate_2D_tradeoff(fault_plane_solutions):
     tradeoffs = []
     model_variances = []
 
-    # Apply in parallel as potentially pretty slow.
+    # Apply in parallel as potentially pretty slow. Runtime should be pretty
+    # similar for each job so no load balancing required.
     with multiprocessing.Pool(
             processes=min(len(damp_parameters), MAX_NUMBER_OF_CORES)) as pool:
         result = pool.map(_apply_calculate_2D_tradeoff,
@@ -132,7 +253,7 @@ def calculate_2D_tradeoff(fault_plane_solutions):
     Y = ret_val["model_length"]
     XX = (X - X.min()) / X.ptp()
     YY = (Y - Y.min()) / Y.ptp()
-    R = np.sqrt (YY ** 2 + XX ** 2)
+    R = np.sqrt(YY ** 2 + XX ** 2)
 
     # Find the infliction point based on the assumptions its a hyperbola.
     idx = np.argmin(R)

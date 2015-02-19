@@ -61,7 +61,6 @@ def calculate_tradeoff_curve(fault_plane_solutions,
     return tc
 
 
-
 def invert_stress(fault_plane_solutions, damping=True,
                   confidence_level=0.95, fraction_valid_fault_planes=0.5,
                   min_event_per_node=20, boostrap_resamplings=2000,

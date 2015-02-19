@@ -397,7 +397,7 @@ void leasq_sparse(a_ija, a_sa, d_ija, d_sa, m, n, p, x, b)
   a3_sa = (double *) malloc(nlen * sizeof(double));
   a3_ija = (int *) malloc(nlen * sizeof(int));
 
-  printf("m,n,p= %d %d %d\n", m, n, p);
+  // printf("m,n,p= %d %d %d\n", m, n, p);
 
   sprstp(a_sa, a_ija, atrans_sa, atrans_ija);
   sprstp(d_sa, d_ija, dtrans_sa, dtrans_ija);

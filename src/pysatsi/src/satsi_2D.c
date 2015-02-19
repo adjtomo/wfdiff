@@ -69,7 +69,7 @@ struct stress_tensor_2D {
 
 // for each input focal mechanism this struct represents the magnitude of
 // shear traction vector and deviation between predicted and calculated slip.
-struct results_for_input_mt {
+struct results_for_input_mt_2D {
   double ddir;
   double dip;
   double rake;
@@ -88,15 +88,15 @@ struct satsi_2D_result {
   double mag_std; // Tangential stress standard deviation.
   struct stress_tensor_2D *tensors;
   int tensor_count;
-  struct results_for_input_mt *results;
+  struct results_for_input_mt_2D *results;
   int result_count;
 };
 
 
 // Function to free the result struct.
-void free_satsi_2D_result(struct satsi_2D_result *result) {
-  free(result->tensors);
-  free(result->results);
+void free_satsi_2D_result(struct satsi_2D_result result) {
+  free(result.tensors);
+  free(result.results);
 }
 
 
@@ -458,7 +458,7 @@ struct satsi_2D_result satsi_2D(
   magstd = 0.;
 
 
-  result.results = (struct results_for_input_mt *) malloc (nobs * sizeof(struct results_for_input_mt));
+  result.results = (struct results_for_input_mt_2D *) malloc (nobs * sizeof(struct results_for_input_mt_2D));
   result.result_count = nobs;
 
   for (i = 0; i < nobs; i++)

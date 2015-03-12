@@ -7,7 +7,6 @@ import os
 
 from setuptools import find_packages
 from setuptools import setup
-from setuptools.extension import Extension
 
 
 changelog = os.path.join(os.path.dirname(os.path.abspath(
@@ -16,9 +15,9 @@ with open(changelog, "rt") as fh:
     changelog = fh.read()
 
 long_description = """
-Source code: https://github.com/krischer/pysatsi
+Source code: https://github.com/krischer/veritas
 
-Documentation: http://krischer.github.io/pysatsi
+Documentation: http://krischer.github.io/veritas
 
 %s""".strip() % changelog
 
@@ -29,40 +28,21 @@ def read(*names, **kwargs):
         encoding=kwargs.get("encoding", "utf8")).read()
 
 
-src = os.path.join('src', 'pysatsi', 'src')
-lib = Extension('satsi',
-                libraries=["M"],
-                # Be careful with the order.
-                sources=[
-                    os.path.join(src, 'leasq_sparse.c'),
-                    os.path.join(src, 'dirplg.c'),
-                    os.path.join(src, 'eigen.c'),
-                    os.path.join(src, 'myrand.c'),
-                    os.path.join(src, 'sort.c'),
-                    os.path.join(src, 'stridip.c'),
-                    os.path.join(src, 'switchsub.c'),
-                    os.path.join(src, 'satsi_2D_tradeoff.c'),
-                    os.path.join(src, 'satsi_2D.c'),
-                ])
-
-
 setup(
-    name="pysatsi",
+    name="veritas",
     version="0.0.0",
     license='GNU General Public License, Version 3 (GPLv3)',
-    description="Python port of MSATSI",
+    description="Veritas",
     long_description=long_description,
-    author="Lion Krischer",
+    author="Lion Krischer and Carl Tape",
     author_email="krischer@geophysik.uni-muenchen.de",
-    url="https://github.com/krischer/pysatsi",
+    url="https://github.com/krischer/veritas",
     packages=find_packages("src"),
     package_dir={"": "src"},
     py_modules=[os.path.splitext(os.path.basename(i))[0]
                 for i in glob.glob("src/*.py")],
     include_package_data=True,
     zip_safe=False,
-    ext_package='pysatsi.lib',
-    ext_modules=[lib],
     classifiers=[
         # complete classifier list:
         # http://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -81,11 +61,10 @@ setup(
         "Topic :: Utilities",
     ],
     keywords=[
-        "seismology", "stress tensor", "science", "stress inversion",
-        "inversion"
+        "seismology", "science", "numerical wave propagation"
     ],
     install_requires=[
-        "obspy", "flake8", "pytest", "nose", "future>=0.14.1"
+        "obspy", "flake8", "pytest"
     ],
     extras_require={
         "docs": ["sphinx", "ipython", "runipy"]

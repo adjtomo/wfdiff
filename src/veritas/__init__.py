@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 :copyright:
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2014
+    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
 :license:
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)
@@ -14,32 +14,27 @@ from future.builtins import *  # NOQA
 import logging
 
 
-class PysatsiError(Exception):
+class VeritasError(Exception):
     """
-    Base class for all Pysatsi exceptions. Will probably be used for all
+    Base class for all Veritas exceptions. Will probably be used for all
     exceptions to not overcomplicate things as the whole package is pretty
     small.
     """
     pass
 
 
-class PysatsiWarning(UserWarning):
+class VeritasWarning(UserWarning):
     """
-    Base class for all Pysatsi warnings.
+    Base class for all Veritas warnings.
     """
     pass
-
-
-# Import pysatsi things beneath the exception and warning definitions to avoid
-# circular imports.
-from .satsi import calculate_tradeoff_curve, read_fault_plane_solutions  # NOQA
 
 
 __version__ = "0.0.0"
 
 
 # Setup the logger.
-logger = logging.getLogger("pysatsi")
+logger = logging.getLogger("veritas")
 logger.setLevel(logging.WARNING)
 # Prevent propagating to higher loggers.
 logger.propagate = 0

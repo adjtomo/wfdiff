@@ -5,7 +5,7 @@ Tests all Python files of the project with flake8. This ensure PEP8 conformance
 and some other sanity checks as well.
 
 :copyright:
-    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2014
+    Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
 :license:
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)
@@ -20,14 +20,14 @@ import os
 def test_flake8():
     test_dir = os.path.dirname(os.path.abspath(inspect.getfile(
         inspect.currentframe())))
-    pysatsi_dir = os.path.dirname(test_dir)
+    veritas_dir = os.path.dirname(test_dir)
 
     # Possibility to ignore some files and paths.
     ignore_paths = [
-        os.path.join(pysatsi_dir, "doc"),
-        os.path.join(pysatsi_dir, ".git")]
+        os.path.join(veritas_dir, "doc"),
+        os.path.join(veritas_dir, ".git")]
     files = []
-    for dirpath, _, filenames in os.walk(pysatsi_dir):
+    for dirpath, _, filenames in os.walk(veritas_dir):
         ignore = False
         for path in ignore_paths:
             if dirpath.startswith(path):

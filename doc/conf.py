@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Pysatsi documentation build configuration file, created by
+# Veritas documentation build configuration file, created by
 # sphinx-quickstart on Thu Nov  6 21:16:35 2014.
 #
 # This file is execfile()d with the current directory set to its
@@ -51,8 +51,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Pysatsi'
-copyright = u'2014, Lion Krischer'
+project = u'Veritas'
+copyright = u'2014, Lion Krischer and Carl Tape'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -187,7 +187,7 @@ html_show_sphinx = False
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Pysatsidoc'
+htmlhelp_basename = 'Veritasdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -207,8 +207,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'Pysatsi.tex', u'Pysatsi Documentation',
-   u'Lion Krischer', 'manual'),
+  ('index', 'Veritas.tex', u'Veritas Documentation',
+   u'Lion Krischer and Carl Tape', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -237,8 +237,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'pysatsi', u'Pysatsi Documentation',
-     [u'Lion Krischer'], 1)
+    ('index', 'veritas', u'Veritas Documentation',
+     [u'Lion Krischer and Carp Tape'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -251,8 +251,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'Pysatsi', u'Pysatsi Documentation',
-   u'Lion Krischer', 'Pysatsi', 'One line description of project.',
+  ('index', 'Veritas', u'Veritas Documentation',
+   u'Lion Krischer and Carl Tape', 'Veritas', 'One line description of project.',
    'Miscellaneous'),
 ]
 

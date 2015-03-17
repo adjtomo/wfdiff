@@ -35,7 +35,7 @@ __version__ = "0.0.0"
 
 # Setup the logger.
 logger = logging.getLogger("veritas")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 # Prevent propagating to higher loggers.
 logger.propagate = 0
 # Console log handler.

@@ -19,6 +19,7 @@ import os
 import numpy as np
 
 from . import logger
+from .io import read_specfem_stations_file
 
 
 class WaveformDataSet(object):
@@ -33,6 +34,30 @@ class WaveformDataSet(object):
     def __init__(self):
         self.dataset_a = {}
         self.dataset_b = {}
+        self._stations = None
+
+    @property
+    def waveform_stations(self):
+        """
+        Get a set of all stations that are part of both datasets.
+        """
+        return set([(_i[0], _i[1]) for _i in self.common_channels])
+
+    @property
+    def station_stations(self):
+        """
+        Get a set of all stations that are part of the station information.
+        """
+        return set([(_i[1].network, _i[1].station) for _i in
+                    self._stations.iterrows()])
+
+    @property
+    def stations(self):
+        """
+        Get a list of all stations that have station information, as well
+        waveform data in both data sets.
+        """
+        return self.waveform_stations.intersection(self.station_stations)
 
     @property
     def common_channels(self):
@@ -70,10 +95,36 @@ class WaveformDataSet(object):
         return self.channels_in_b.difference(self.common_channels)
 
     def add_waveform_to_dataset_a(self, net_sta_comp, filename):
-        self.dataset_a[tuple(net_sta_comp)] = filename
+        """
+        Add waveforms to dataset A.
+
+        :param net_sta_comp: A tuple of network id, station id, and the
+            component.
+        :param filename: The filename of the waveform data.
+        """
+        # Convert to upper case to be a bit defensive.
+        self.dataset_a[tuple([_i.upper() for _i in net_sta_comp])] = filename
 
     def add_waveform_to_dataset_b(self, net_sta_comp, filename):
-        self.dataset_b[tuple(net_sta_comp)] = filename
+        """
+        Add waveforms to dataset B.
+
+        :param net_sta_comp: A tuple of network id, station id, and the
+            component.
+        :param filename: The filename of the waveform data.
+        """
+        # Convert to upper case to be a bit defensive.
+        self.dataset_b[tuple([_i.upper() for _i in net_sta_comp])] = filename
+
+    def set_stations_dataframe(self, df):
+        """
+        Set the stations dataframe of the data set object.
+
+        :param df: A pandas dataframe object with at least the following
+            columns: ``"network"``, ``"station"``, ``"latitude"``,
+            ``"longitude"``
+        """
+        self._stations = df
 
 
 class Config(object):
@@ -113,6 +164,18 @@ class Config(object):
         self.frequencies = np.arange(t_min, t_max + dt * 0.1, dt)
 
         self._find_waveform_files()
+        self.wf_dataset.set_stations_dataframe(read_specfem_stations_file(
+            station_info))
+
+        avail_stations = self.wf_dataset.stations
+        wf_s = self.wf_dataset.waveform_stations
+        logger.info("%i stations are part of both datasets and also have "
+                    "available station information." %
+                    len(avail_stations))
+        if len(wf_s) > len(avail_stations):
+            logger.info("%i stations are part of both datasets but no "
+                        "station information exists for them." % (
+                len(wf_s) - len(avail_stations)))
 
     def _find_waveform_files(self):
         """

@@ -19,15 +19,29 @@ from collections import namedtuple
 import glob
 import os
 
+import obspy
 import numpy as np
 
 from . import logger
-from .io import read_specfem_stations_file
+from . import misfits
+from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
 
 Channel = namedtuple("Channel", ["network", "station", "component",
                                  "latitude", "longitude", "filename_a",
                                  "filename_b"])
+
+Result = namedtuple("Result", ["network", "station", "component",
+                               "latitude", "longitude",  "misfit_type",
+                               "threshold_frequency"])
+
+
+MISFIT_MAP = {
+    "l2_norm": misfits.l2_norm,
+    "l1_norm": misfits.l1_norm,
+    "x_corr_time_shift": misfits.x_corr_time_shift,
+    "x_corr_value": misfits.x_corr_value
+}
 
 
 class WaveformDataSet(object):
@@ -178,9 +192,10 @@ class WaveformDataSet(object):
         self._stations = df
 
 
-class Config(object):
+class WFDiff(object):
     def __init__(self, low_res_seismos, high_res_seismos, station_info,
-                 t_min, t_max, dt, get_net_sta_comp_fct=None):
+                 t_min, t_max, dt, get_net_sta_comp_fct=None,
+                 is_specfem_ascii=False):
         """
 
         :param low_res_seismos: A UNIX style wildcard pattern to find the
@@ -204,15 +219,19 @@ class Config(object):
             SPECFEM recently changed their naming scheme so no default is
             provided as it would be too dangerous to be wrong.
         :type get_net_sta_comp_fct: function
+        :param is_specfem_ascii: If `True`, the waveform files will be
+            assumed to be the ASCII files from SPECFEM.
+        :type is_specfem_ascii: bool
         """
         self.low_res_seismos = low_res_seismos
         self.high_res_seismos = high_res_seismos
         self.get_net_sta_comp_fct = get_net_sta_comp_fct
         self.wf_dataset = WaveformDataSet()
+        self.is_specfem_ascii = is_specfem_ascii
 
         # Get a list of frequencies to test. Make sure t_max is included.
         assert t_min < t_max
-        self.frequencies = np.arange(t_min, t_max + dt * 0.1, dt)
+        self.periods = np.arange(t_min, t_max + dt * 0.1, dt)
 
         self._find_waveform_files()
         self.wf_dataset.set_stations_dataframe(read_specfem_stations_file(
@@ -228,8 +247,61 @@ class Config(object):
                         "station information exists for them." % (
                 len(wf_s) - len(avail_stations)))
 
+    def run(self, misfit_type, threshold):
+        misfit_fct = MISFIT_MAP[misfit_type]
+
+        results = {}
         for _i in self.wf_dataset:
-            print(_i)
+            if self.is_specfem_ascii:
+                tr_a = read_specfem_ascii_waveform_file(
+                    _i.filename_a, network=_i.network, station=_i.station,
+                    channel=_i.component)[0]
+                tr_b = read_specfem_ascii_waveform_file(
+                    _i.filename_b, network=_i.network, station=_i.station,
+                    channel=_i.component)[0]
+            else:
+                tr_a = obspy.read(_i.filename_a)[0]
+                tr_b = obspy.read(_i.filename_b)[0]
+
+            misfits.preprocess_traces(tr_a, tr_b)
+
+            # Taper to stabilize the filter.
+            tr_a.taper(type="hann", max_percentage=0.03)
+            tr_b.taper(type="hann", max_percentage=0.03)
+
+            # Calculate the misfit for a number of periods.
+            periods = []
+            misfit_values = []
+
+            for period in self.periods:
+                h_tr = tr_b.copy()
+                l_tr = tr_a.copy()
+                h_tr.filter("lowpass", freq=1.0 / period, corners=3)
+                l_tr.filter("lowpass", freq=1.0 / period, corners=3)
+
+                misfit = misfit_fct(h_tr, l_tr)
+                periods.append(period)
+                misfit_values.append(misfit)
+
+            periods = np.array(periods)
+            misfit_values = np.array(misfit_values)
+
+            # We go from low to high periods. Thus we want to find the first
+            # value below the chosen threshold.
+            this_threshold = misfit_values.min() + (misfit_values.ptp() *
+                                                    threshold)
+            idx = np.argmax(misfit_values[::-1] > this_threshold) - 1
+
+            value = periods[-idx]
+
+            r = Result(
+                network=_i.network, station=_i.station,
+                component=_i.component, latitude=_i.latitude,
+                longitude=_i.longitude, misfit_type=misfit_type,
+                threshold_frequency=value)
+            results[(_i.network, _i.station, _i.component)] = r
+
+        return results
 
     def _find_waveform_files(self):
         """

@@ -9,10 +9,13 @@ Main veritas interfaces.
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)
 """
+# The following two lines are the main reason why the code works in Python 2
+# and Python 3.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from future.builtins import *  # NOQA
 
+from collections import namedtuple
 import glob
 import os
 
@@ -20,6 +23,11 @@ import numpy as np
 
 from . import logger
 from .io import read_specfem_stations_file
+
+
+Channel = namedtuple("Channel", ["network", "station", "component",
+                                 "latitude", "longitude", "filename_a",
+                                 "filename_b"])
 
 
 class WaveformDataSet(object):
@@ -35,6 +43,49 @@ class WaveformDataSet(object):
         self.dataset_a = {}
         self.dataset_b = {}
         self._stations = None
+
+    def __iter__(self):
+        self._iter_cur_index = 0
+        self._iter_channels = self.all_channels
+        return self
+
+    def __next__(self):
+        if self._iter_cur_index >= len(self._iter_channels):
+            raise StopIteration
+        cur_channel = self._iter_channels[self._iter_cur_index]
+        self._iter_cur_index += 1
+        return self.get(*cur_channel)
+
+    def get_coordinates(self, network, station):
+        row = self._stations[(self._stations["station"] == station) &
+                             (self._stations["network"] == network)]
+        return float(row.latitude), float(row.longitude)
+
+    def get(self, network, station, component):
+        ds_a = self.dataset_a[(network, station, component)]
+        ds_b = self.dataset_b[(network, station, component)]
+        latitude, longitude = self.get_coordinates(network, station)
+        return Channel(network=network, station=station, component=component,
+                       latitude=latitude,  longitude=longitude,
+                       filename_a=ds_a, filename_b=ds_b)
+
+    @property
+    def all_channels(self):
+        """
+        Returns a sorted list of all channels that are part of both waveform
+        datasets and have station information.
+        """
+        # These are the channels common in both waveform datasets.
+        common_channels = self.common_channels
+
+        all_channels = []
+        # Loop over all stations that also have station information.
+        for station in self.stations:
+            channels = [_i for _i in common_channels if _i[:2] == station[:2]]
+            all_channels.extend(channels)
+
+        all_channels = sorted(all_channels)
+        return all_channels
 
     @property
     def waveform_stations(self):
@@ -176,6 +227,9 @@ class Config(object):
             logger.info("%i stations are part of both datasets but no "
                         "station information exists for them." % (
                 len(wf_s) - len(avail_stations)))
+
+        for _i in self.wf_dataset:
+            print(_i)
 
     def _find_waveform_files(self):
         """

@@ -17,15 +17,18 @@ from future.builtins import *  # NOQA
 
 from collections import namedtuple
 import glob
+import json
 import os
 
 import obspy
+from mpi4py import MPI
 import numpy as np
 
 from . import logger
 from . import misfits
 from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
+COMM = MPI.COMM_WORLD
 
 Channel = namedtuple("Channel", ["network", "station", "component",
                                  "latitude", "longitude", "filename_a",
@@ -233,39 +236,80 @@ class WFDiff(object):
         assert t_min < t_max
         self.periods = np.arange(t_min, t_max + dt * 0.1, dt)
 
-        self._find_waveform_files()
-        self.wf_dataset.set_stations_dataframe(read_specfem_stations_file(
-            station_info))
+        if COMM.rank == 0:
+            self._find_waveform_files()
+            self.wf_dataset.set_stations_dataframe(read_specfem_stations_file(
+                station_info))
 
-        avail_stations = self.wf_dataset.stations
-        wf_s = self.wf_dataset.waveform_stations
-        logger.info("%i stations are part of both datasets and also have "
-                    "available station information." %
-                    len(avail_stations))
-        if len(wf_s) > len(avail_stations):
-            logger.info("%i stations are part of both datasets but no "
-                        "station information exists for them." % (
-                len(wf_s) - len(avail_stations)))
+            avail_stations = self.wf_dataset.stations
+            wf_s = self.wf_dataset.waveform_stations
+            logger.info("%i stations are part of both datasets and also have "
+                        "available station information." %
+                        len(avail_stations))
+            if len(wf_s) > len(avail_stations):
+                logger.info("%i stations are part of both datasets but no "
+                            "station information exists for them." % (
+                    len(wf_s) - len(avail_stations)))
+        COMM.barrier()
 
-    def run(self, misfit_type, threshold):
+    def run(self, misfit_type, threshold, output_directory):
         misfit_fct = MISFIT_MAP[misfit_type]
 
-        results = {}
-        for _i in self.wf_dataset:
+
+        def split(container, count):
+            """
+            Simple and elegant function splitting a container into count
+            equal chunks.
+
+            Order is not preserved but for the use case at hand this is
+            potentially an advantage as data sitting in the same folder thus
+            have a higher at being processed at the same time thus the disc
+            head does not have to jump around so much. Of course very
+            architecture dependent.
+            """
+            return [container[_i::count] for _i in range(count)]
+
+        if os.path.exists(output_directory):
+            raise ValueError("Directory '%s' already exists." %
+                             output_directory)
+
+        COMM.barrier()
+
+        if COMM.rank == 0:
+            os.makedirs(output_directory)
+
+            jobs = [_i for _i in self.wf_dataset]
+            total_length = len(jobs)
+            # Collect all jobs on rank 0 and distribute.
+            jobs = split(jobs, COMM.size)
+
+            logger.info("Distributing %i jobs across %i cores." % (
+                total_length, COMM.size))
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+        results = []
+
+        for _i, job in enumerate(jobs):
             if self.is_specfem_ascii:
                 tr_a = read_specfem_ascii_waveform_file(
-                    _i.filename_a, network=_i.network, station=_i.station,
-                    channel=_i.component)[0]
+                    job.filename_a, network=job.network, station=job.station,
+                    channel=job.component)[0]
                 tr_b = read_specfem_ascii_waveform_file(
-                    _i.filename_b, network=_i.network, station=_i.station,
-                    channel=_i.component)[0]
+                    job.filename_b, network=job.network, station=job.station,
+                    channel=job.component)[0]
             else:
-                tr_a = obspy.read(_i.filename_a)[0]
-                tr_b = obspy.read(_i.filename_b)[0]
+                tr_a = obspy.read(job.filename_a)[0]
+                tr_b = obspy.read(job.filename_b)[0]
 
             misfits.preprocess_traces(tr_a, tr_b)
 
             # Taper to stabilize the filter.
+            tr_a.detrend("demean")
+            tr_a.detrend("linear")
+            tr_b.detrend("demean")
+            tr_b.detrend("linear")
             tr_a.taper(type="hann", max_percentage=0.03)
             tr_b.taper(type="hann", max_percentage=0.03)
 
@@ -273,11 +317,13 @@ class WFDiff(object):
             periods = []
             misfit_values = []
 
+            import time
+            a = time.time()
             for period in self.periods:
                 h_tr = tr_b.copy()
                 l_tr = tr_a.copy()
-                h_tr.filter("lowpass", freq=1.0 / period, corners=3)
-                l_tr.filter("lowpass", freq=1.0 / period, corners=3)
+                h_tr.filter("lowpass", freq=1.0 / period, corners=4)
+                l_tr.filter("lowpass", freq=1.0 / period, corners=4)
 
                 misfit = misfit_fct(h_tr, l_tr)
                 periods.append(period)
@@ -294,14 +340,48 @@ class WFDiff(object):
 
             value = periods[-idx]
 
-            r = Result(
-                network=_i.network, station=_i.station,
-                component=_i.component, latitude=_i.latitude,
-                longitude=_i.longitude, misfit_type=misfit_type,
-                threshold_frequency=value)
-            results[(_i.network, _i.station, _i.component)] = r
+            import matplotlib.pylab as plt
+            plt.style.use("ggplot")
+            plt.close()
+            plt.figure()
+            plt.plot(periods, misfit_values)
+            plt.scatter([periods[-idx]], [misfit_values[-idx]], marker="o")
+            plt.xlim(periods[0], periods[-1])
+            plt.hlines(this_threshold, periods[0], periods[-1])
+            plt.savefig(os.path.join(
+                output_directory,
+                "%s_%s_%s.png" % (job.network, job.station,job.component)))
 
-        return results
+
+            r = {
+                "network": job.network,
+                "station": job.station,
+                "component": job.component,
+                "latitude": job.latitude,
+                "longitude": job.longitude,
+                "misfit_type": misfit_type,
+                "threshold_frequency": value
+            }
+            results.append([(job.network, job.station, job.component), r])
+
+            b = time.time()
+            print("Time taken: ", b - a)
+
+            if COMM.rank == 0:
+                print("Approximately %i of %i items have been processed." % (
+                    min((_i + 1) * MPI.COMM_WORLD.size, total_length),
+                    total_length))
+
+        results = MPI.COMM_WORLD.gather(results, root=0)
+
+        if COMM.rank == 0:
+            results = {_i[0]: _i[1] for _i in results}
+
+            with open(os.path.join(output_directory,
+                                   "results.json"), "w") as fh:
+                json.dump(results, fh, sort_keys=True, indent=4,
+                          separators=(",", ": "))
+
 
     def _find_waveform_files(self):
         """

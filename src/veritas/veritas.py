@@ -41,7 +41,7 @@ MISFIT_MAP = {
     "l2_norm": (misfits.l2_norm, "L2 Norm"),
     "l1_norm": (misfits.l1_norm, "L1 Norm"),
     "x_corr_time_shift": (misfits.x_corr_time_shift, "CC Time Shift"),
-    "x_corr_value": (misfits.x_corr_value, "CC Value")
+    "x_corr_coefficient": (misfits.x_corr_coefficient, "CC Value")
 }
 
 class NumPyJSONEncoder(json.JSONEncoder):
@@ -315,10 +315,7 @@ class WFDiff(object):
                     len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_type, threshold, output_directory):
-        misfit_fct = MISFIT_MAP[misfit_type][0]
-        pretty_misfit_name = MISFIT_MAP[misfit_type][1]
-
+    def run(self, misfit_types, output_directory):
 
         def split(container, count):
             """

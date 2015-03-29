@@ -25,8 +25,7 @@ import matplotlib.pylab as plt
 from mpi4py import MPI
 import numpy as np
 
-from . import logger
-from . import misfits
+from . import logger, misfits, utils
 from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
 plt.style.use("ggplot")
@@ -37,12 +36,6 @@ Channel = namedtuple("Channel", ["network", "station", "component",
                                  "latitude", "longitude", "filename_high",
                                  "filename_low"])
 
-MISFIT_MAP = {
-    "l2_norm": (misfits.l2_norm, "L2 Norm"),
-    "l1_norm": (misfits.l1_norm, "L1 Norm"),
-    "x_corr_time_shift": (misfits.x_corr_time_shift, "CC Time Shift"),
-    "x_corr_coefficient": (misfits.x_corr_coefficient, "CC Value")
-}
 
 class NumPyJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -256,7 +249,9 @@ class WaveformDataSet(object):
 
 class WFDiff(object):
     def __init__(self, low_res_seismos, high_res_seismos, station_info,
-                 t_min, t_max, dt, starttime=None,
+                 t_min, t_max, dt,
+                 data_units, desired_analysis_units,
+                 starttime=None,
                  endtime=None, get_net_sta_comp_fct=None,
                  is_specfem_ascii=False):
         """
@@ -276,6 +271,13 @@ class WFDiff(object):
         :type t_max: float
         :param dt: The delta for the tested frequencies.
         :type dt: float
+        :param data_units: The units of the data, one of ``"displacement"``,
+            ``"velocity"``, ``"acceleration"``.
+        :type data_units: str
+        :param desired_analysis_units: The units in which the analysis
+            should be performed. One one of ``"displacement"``,
+                ``"velocity"``, ``"acceleration"``.
+        :type desired_analysis_units: str
         :param get_net_sta_comp_fct: A function that takes a seismogram
             filename and returns network, station, and component of that
             seismogram. Needed if the filename encodes that information.
@@ -291,6 +293,21 @@ class WFDiff(object):
         self.get_net_sta_comp_fct = get_net_sta_comp_fct
         self.wf_dataset = WaveformDataSet()
         self.is_specfem_ascii = is_specfem_ascii
+
+        # Check units here.
+        acceptable_units = ["displacement", "velocity", "acceleration"]
+        data_units = data_units.lower()
+        desired_analysis_units = desired_analysis_units.lower()
+        if data_units not in acceptable_units:
+            raise ValueError(
+                "Data unit '%s' is not allowed. Allowed units: "
+                "'displacement', 'velocity', or 'acceleration'.")
+        if desired_analysis_units not in acceptable_units:
+            raise ValueError(
+                "Data unit '%s' is not allowed. Allowed units: "
+                "'displacement', 'velocity', or 'acceleration'.")
+        self.data_units = data_units
+        self.desired_analysis_units = desired_analysis_units
 
         self.starttime = starttime
         self.endtime = endtime
@@ -315,7 +332,17 @@ class WFDiff(object):
                     len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_types, output_directory):
+    def run(self, misfit_types, output_directory, save_debug_plots=False):
+        misfit_functions = {}
+        # Check if all the misfit types also have corresponding functions.
+        for m_type in misfit_types:
+            try:
+                fct = getattr(misfits, m_type)
+            except AttributeError:
+                raise ValueError("Misfit '%s' not known. Known misfits: %s" %
+                                 (m_type, ", ".join(["'%s'" % _i for _i in
+                                                     misfits.__all__])))
+            misfit_functions[m_type] = fct
 
         def split(container, count):
             """
@@ -364,22 +391,13 @@ class WFDiff(object):
                 tr_high = obspy.read(job.filename_high)[0]
                 tr_low = obspy.read(job.filename_low)[0]
 
-            misfits.preprocess_traces(tr_high, tr_low)
+            utils.preprocess_traces(
+                tr_high, tr_low,
+                starttime=self.starttime,
+                endtime=self.endtime,
+                data_units=self.data_units,
+                desired_units=self.desired_analysis_units)
 
-            tr_high.trim(starttime=tr_high.stats.starttime + self.starttime,
-                         endtime=tr_high.stats.starttime + self.endtime)
-            tr_low.trim(starttime=tr_low.stats.starttime + self.starttime,
-                         endtime=tr_low.stats.starttime + self.endtime)
-
-            # Taper to stabilize the filter.
-            tr_high.detrend("demean")
-            tr_high.detrend("linear")
-            tr_low.detrend("demean")
-            tr_low.detrend("linear")
-            tr_high.taper(type="hann", max_percentage=0.03)
-            tr_low.taper(type="hann", max_percentage=0.03)
-            tr_high.differentiate()
-            tr_low.differentiate()
 
             # Calculate the misfit for a number of periods.
             periods = []

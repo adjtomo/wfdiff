@@ -16,6 +16,7 @@ from __future__ import (absolute_import, division, print_function,
 from future.builtins import *  # NOQA
 
 from collections import defaultdict, namedtuple
+import copy
 import glob
 import json
 import os
@@ -25,7 +26,7 @@ import matplotlib.pylab as plt
 from mpi4py import MPI
 import numpy as np
 
-from . import logger, misfits, processing
+from . import logger, misfits, processing, watermark
 from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
 plt.style.use("ggplot")
@@ -46,9 +47,8 @@ class Results(object):
         with open(filename, "r") as fh:
             _results = json.load(fh)
         results = Results()
-        for result in _results.values():
-            if not isinstance(result, dict):
-                results.add_result(result)
+        del _results["_watermark"]
+        results.__misfit_measurements = _results
         return results
 
     def add_result(self, result):
@@ -73,8 +73,10 @@ class Results(object):
         }
 
     def dump(self, filename):
+        measurements = copy.deepcopy(self.__misfit_measurements)
+        measurements["_watermark"] = watermark.get_watermark()
         with open(filename, "w") as fh:
-            json.dump(self.__misfit_measurements, fh, sort_keys=True, indent=4,
+            json.dump(measurements, fh, sort_keys=True, indent=4,
                       separators=(",", ": "))
 
     @property

@@ -3,7 +3,9 @@
 """
 Various misfit measurements.
 
-All of them take two traces as input files.
+All of them take two traces as input files. For the purpose of
+normalization, the first trace is intended to be the low resolution one,
+and the second one the high resolution one.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
@@ -19,7 +21,7 @@ import numpy as np
 
 
 def l2_norm(tr1, tr2):
-    return np.sum((np.sum(tr1.data ** 2) - np.sum(tr2.data ** 2)) ** 2)
+    return np.sum((tr1.data - tr2.data) ** 2) / np.sum(tr2.data ** 2)
 
 
 def l1_norm(tr1, tr2):

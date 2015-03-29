@@ -31,8 +31,8 @@ from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 COMM = MPI.COMM_WORLD
 
 Channel = namedtuple("Channel", ["network", "station", "component",
-                                 "latitude", "longitude", "filename_a",
-                                 "filename_b"])
+                                 "latitude", "longitude", "filename_high",
+                                 "filename_low"])
 
 Result = namedtuple("Result", ["network", "station", "component",
                                "latitude", "longitude",  "misfit_type",
@@ -52,13 +52,13 @@ class WaveformDataSet(object):
     Simple object helping to connect two waveform data sets and associated
     station meta information.
 
-    By convention, dataset A is the one which is assumed to be more wrong
-    than dataset B, e.g. the one calculated with the lower polynomial order,
-    or no topography, ...
+    `dataset_high` is the one with the "truer" value, be it higher
+    polynomial degrees during the simulation or more accuracy due to other
+    reasons.
     """
     def __init__(self):
-        self.dataset_a = {}
-        self.dataset_b = {}
+        self.dataset_high = {}
+        self.dataset_low = {}
         self._stations = None
 
     def __iter__(self):
@@ -79,12 +79,12 @@ class WaveformDataSet(object):
         return float(row.latitude), float(row.longitude)
 
     def get(self, network, station, component):
-        ds_a = self.dataset_a[(network, station, component)]
-        ds_b = self.dataset_b[(network, station, component)]
+        ds_high = self.dataset_high[(network, station, component)]
+        ds_low = self.dataset_low[(network, station, component)]
         latitude, longitude = self.get_coordinates(network, station)
         return Channel(network=network, station=station, component=component,
                        latitude=latitude,  longitude=longitude,
-                       filename_a=ds_a, filename_b=ds_b)
+                       filename_high=ds_high, filename_low=ds_low)
 
     @property
     def all_channels(self):
@@ -132,57 +132,58 @@ class WaveformDataSet(object):
         """
         Returns a set of common channel ids.
         """
-        return self.channels_in_a.intersection(self.channels_in_b)
+        return self.channels_in_high.intersection(self.channels_in_low)
 
     @property
-    def channels_in_a(self):
+    def channels_in_high(self):
         """
-        Returns a set of channels in dataset A.
+        Returns a set of channels in the high resolution data set.
         """
-        return set(self.dataset_a.keys())
+        return set(self.dataset_high.keys())
 
     @property
-    def channels_in_b(self):
+    def channels_in_low(self):
         """
-        Returns a set of channels in dataset B.
+        Returns a set of channels in the low resolution data set.
         """
-        return set(self.dataset_b.keys())
+        return set(self.dataset_low.keys())
 
     @property
-    def channels_only_in_set_a(self):
+    def channels_only_in_high_set(self):
         """
-        Returns a set of channels only in dataset A.
+        Returns a set of channels only in the high resolution data set.
         """
-        return self.channels_in_a.difference(self.common_channels)
+        return self.channels_in_high.difference(self.common_channels)
 
     @property
-    def channels_only_in_set_b(self):
+    def channels_only_in_low_set(self):
         """
-        Returns a set of channels only in dataset B.
+        Returns a set of channels only in the low resolution dataset.
         """
-        return self.channels_in_b.difference(self.common_channels)
+        return self.channels_in_low.difference(self.common_channels)
 
-    def add_waveform_to_dataset_a(self, net_sta_comp, filename):
+    def add_waveform_to_dataset_high(self, net_sta_comp, filename):
         """
-        Add waveforms to dataset A.
+        Add waveforms to the high resolution dataset.
 
         :param net_sta_comp: A tuple of network id, station id, and the
             component.
         :param filename: The filename of the waveform data.
         """
         # Convert to upper case to be a bit defensive.
-        self.dataset_a[tuple([_i.upper() for _i in net_sta_comp])] = filename
+        self.dataset_high[tuple([_i.upper() for _i in net_sta_comp])] = \
+            filename
 
-    def add_waveform_to_dataset_b(self, net_sta_comp, filename):
+    def add_waveform_to_dataset_low(self, net_sta_comp, filename):
         """
-        Add waveforms to dataset B.
+        Add waveforms to the low resolution data set.
 
         :param net_sta_comp: A tuple of network id, station id, and the
             component.
         :param filename: The filename of the waveform data.
         """
         # Convert to upper case to be a bit defensive.
-        self.dataset_b[tuple([_i.upper() for _i in net_sta_comp])] = filename
+        self.dataset_low[tuple([_i.upper() for _i in net_sta_comp])] = filename
 
     def set_stations_dataframe(self, df):
         """
@@ -197,7 +198,8 @@ class WaveformDataSet(object):
 
 class WFDiff(object):
     def __init__(self, low_res_seismos, high_res_seismos, station_info,
-                 t_min, t_max, dt, get_net_sta_comp_fct=None,
+                 t_min, t_max, dt, starttime=None,
+                 endtime=None, get_net_sta_comp_fct=None,
                  is_specfem_ascii=False):
         """
 
@@ -231,6 +233,9 @@ class WFDiff(object):
         self.get_net_sta_comp_fct = get_net_sta_comp_fct
         self.wf_dataset = WaveformDataSet()
         self.is_specfem_ascii = is_specfem_ascii
+
+        self.starttime = starttime
+        self.endtime = endtime
 
         # Get a list of frequencies to test. Make sure t_max is included.
         assert t_min < t_max
@@ -293,25 +298,32 @@ class WFDiff(object):
 
         for _i, job in enumerate(jobs):
             if self.is_specfem_ascii:
-                tr_a = read_specfem_ascii_waveform_file(
-                    job.filename_a, network=job.network, station=job.station,
-                    channel=job.component)[0]
-                tr_b = read_specfem_ascii_waveform_file(
-                    job.filename_b, network=job.network, station=job.station,
+                tr_high = read_specfem_ascii_waveform_file(
+                    job.filename_high, network=job.network,
+                    station=job.station, channel=job.component)[0]
+                tr_low = read_specfem_ascii_waveform_file(
+                    job.filename_low, network=job.network, station=job.station,
                     channel=job.component)[0]
             else:
-                tr_a = obspy.read(job.filename_a)[0]
-                tr_b = obspy.read(job.filename_b)[0]
+                tr_high = obspy.read(job.filename_high)[0]
+                tr_low = obspy.read(job.filename_low)[0]
 
-            misfits.preprocess_traces(tr_a, tr_b)
+            misfits.preprocess_traces(tr_high, tr_low)
+
+            tr_high.trim(starttime=tr_high.stats.starttime + self.starttime,
+                         endtime=tr_high.stats.starttime + self.endtime)
+            tr_low.trim(starttime=tr_low.stats.starttime + self.starttime,
+                         endtime=tr_low.stats.starttime + self.endtime)
 
             # Taper to stabilize the filter.
-            tr_a.detrend("demean")
-            tr_a.detrend("linear")
-            tr_b.detrend("demean")
-            tr_b.detrend("linear")
-            tr_a.taper(type="hann", max_percentage=0.03)
-            tr_b.taper(type="hann", max_percentage=0.03)
+            tr_high.detrend("demean")
+            tr_high.detrend("linear")
+            tr_low.detrend("demean")
+            tr_low.detrend("linear")
+            tr_high.taper(type="hann", max_percentage=0.03)
+            tr_low.taper(type="hann", max_percentage=0.03)
+            tr_high.differentiate()
+            tr_low.differentiate()
 
             # Calculate the misfit for a number of periods.
             periods = []
@@ -319,15 +331,31 @@ class WFDiff(object):
 
             import time
             a = time.time()
-            for period in self.periods:
-                h_tr = tr_b.copy()
-                l_tr = tr_a.copy()
-                h_tr.filter("lowpass", freq=1.0 / period, corners=4)
-                l_tr.filter("lowpass", freq=1.0 / period, corners=4)
 
-                misfit = misfit_fct(h_tr, l_tr)
+            # import matplotlib.pylab as plt
+            # plt.figure()
+            # count = len(self.periods) + 1
+            # plt.subplot(count, 1, 1)
+            # plt.plot(tr_high.data, color="red")
+            # plt.plot(tr_low.data, color="blue")
+
+            for _i, period in enumerate(self.periods):
+                l_tr = tr_low.copy()
+                h_tr = tr_high.copy()
+                l_tr.filter("lowpass", freq=1.0 / period, corners=3)
+                h_tr.filter("lowpass", freq=1.0 / period, corners=3)
+
+
+                misfit = misfit_fct(l_tr, h_tr)
                 periods.append(period)
                 misfit_values.append(misfit)
+
+                # plt.subplot(count, 1, _i + 2)
+                # plt.plot(h_tr.data, color="red")
+                # plt.plot(l_tr.data, color="blue")
+                # plt.title("Period %.1f, misfit: %g" % (period, misfit))
+
+            # plt.show()
 
             periods = np.array(periods)
             misfit_values = np.array(misfit_values)
@@ -344,10 +372,12 @@ class WFDiff(object):
             plt.style.use("ggplot")
             plt.close()
             plt.figure()
-            plt.plot(periods, misfit_values)
+            plt.plot(periods, np.log10(misfit_values))
+            plt.xlabel("Minimum period [s]")
+            plt.ylabel("log10(wdiff)")
             plt.scatter([periods[-idx]], [misfit_values[-idx]], marker="o")
             plt.xlim(periods[0], periods[-1])
-            plt.hlines(this_threshold, periods[0], periods[-1])
+            # plt.hlines(-1, periods[0], periods[-1])
             plt.savefig(os.path.join(
                 output_directory,
                 "%s_%s_%s.png" % (job.network, job.station,job.component)))
@@ -391,19 +421,19 @@ class WFDiff(object):
         high_res = glob.glob(self.high_res_seismos)
 
         for filename in low_res:
-            self.wf_dataset.add_waveform_to_dataset_a(
+            self.wf_dataset.add_waveform_to_dataset_low(
                 self.get_net_sta_comp_fct(os.path.basename(filename)),
                 filename)
 
         for filename in high_res:
-            self.wf_dataset.add_waveform_to_dataset_b(
+            self.wf_dataset.add_waveform_to_dataset_high(
                 self.get_net_sta_comp_fct(os.path.basename(filename)),
                 filename)
 
 
         c_chan = self.wf_dataset.common_channels
-        a_chan = self.wf_dataset.channels_only_in_set_a
-        b_chan = self.wf_dataset.channels_only_in_set_b
+        a_chan = self.wf_dataset.channels_only_in_high_set
+        b_chan = self.wf_dataset.channels_only_in_low_set
 
         logger.info("Found %i waveforms files that are part of both "
                     "data sets." % len(c_chan))

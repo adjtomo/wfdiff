@@ -15,7 +15,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from future.builtins import *  # NOQA
 
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 import glob
 import json
 import os
@@ -25,7 +25,7 @@ import matplotlib.pylab as plt
 from mpi4py import MPI
 import numpy as np
 
-from . import logger, misfits, utils
+from . import logger, misfits, processing
 from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
 plt.style.use("ggplot")
@@ -37,41 +37,45 @@ Channel = namedtuple("Channel", ["network", "station", "component",
                                  "filename_low"])
 
 
-class NumPyJSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return json.dumps(list(map(float, obj)))
-        return json.JSONEncoder.default(self, obj)
-
-
 class Results(object):
-    def __init__(self, misfit_type):
-        self.__results = {}
-        self.misfit_type = misfit_type
+    def __init__(self):
+        self.__misfit_measurements = {}
 
     @staticmethod
     def load(filename):
         with open(filename, "r") as fh:
             _results = json.load(fh)
-        results = Results(misfit_type=_results["misfit_type"])
+        results = Results()
         for result in _results.values():
             if not isinstance(result, dict):
                 results.add_result(result)
         return results
 
     def add_result(self, result):
-        self.__results[(result["network"], result["station"],
-                        result["component"])] = result
+        name = result["misfit_name"]
+        if name not in self.__misfit_measurements:
+            self.__misfit_measurements[name] = {
+                "misfit_name": result["misfit_name"],
+                "misfit_pretty_name": result["misfit_pretty_name"],
+                "misfit_logarithmic_plot": result["misfit_logarithmic_plot"],
+                "measurements": {}
+            }
+
+        self.__misfit_measurements[name]["measurements"][
+            "{network}.{station}{component}".format(**result)] = {
+            "network": result["network"],
+            "station": result["station"],
+            "component": result["component"],
+            "latitude": result["latitude"],
+            "longitude": result["longitude"],
+            "misfit_values": result["misfit_values"],
+            "periods": result["periods"]
+        }
 
     def dump(self, filename):
-        _results = {}
-        _results["misfit_type"] = self.misfit_type
-        for _i in self.__results.values():
-            _results["{network}.{station}.{component}".format(**_i)] = _i
-
         with open(filename, "w") as fh:
-            json.dump(_results, fh, sort_keys=True, indent=4,
-                      separators=(",", ": "), cls=NumPyJSONEncoder)
+            json.dump(self.__misfit_measurements, fh, sort_keys=True, indent=4,
+                      separators=(",", ": "))
 
     @property
     def components(self):
@@ -363,6 +367,7 @@ class WFDiff(object):
 
         COMM.barrier()
 
+        # Rank zero figures out what to do and distributes it.
         if COMM.rank == 0:
             os.makedirs(output_directory)
 
@@ -377,9 +382,14 @@ class WFDiff(object):
             jobs = None
 
         jobs = COMM.scatter(jobs, root=0)
-        results = []
 
+        # Each rank now calculates things. No load balancing but as data
+        # traces very likely all have the same length, this is not needed.
+        results = []
         for jobnum, job in enumerate(jobs):
+            # Read the waveform traces. Fork depending on SPECFEM ASCII
+            # output or not. If not data is read with ObsPy which should be
+            # able to read almost anything.
             if self.is_specfem_ascii:
                 tr_high = read_specfem_ascii_waveform_file(
                     job.filename_high, network=job.network,
@@ -391,17 +401,17 @@ class WFDiff(object):
                 tr_high = obspy.read(job.filename_high)[0]
                 tr_low = obspy.read(job.filename_low)[0]
 
-            utils.preprocess_traces(
+            # Preprocess data. Afterwards they will be sampled at exactly
+            # the same points in time and have the desired units.
+            processing.preprocess_traces(
                 tr_high, tr_low,
                 starttime=self.starttime,
                 endtime=self.endtime,
                 data_units=self.data_units,
                 desired_units=self.desired_analysis_units)
 
-
-            # Calculate the misfit for a number of periods.
-            periods = []
-            misfit_values = []
+            # Calculate each misfit for a range of periods.
+            collected_misfits = defaultdict(list)
 
             # import matplotlib.pylab as plt
             # plt.figure()
@@ -416,10 +426,15 @@ class WFDiff(object):
                 l_tr.filter("lowpass", freq=1.0 / period, corners=3)
                 h_tr.filter("lowpass", freq=1.0 / period, corners=3)
 
-
-                misfit = misfit_fct(l_tr, h_tr)
-                periods.append(period)
-                misfit_values.append(misfit)
+                # Calculate each desired misfit.
+                for name, fct in misfit_functions.items():
+                    # Potentially returns multiple measures, e.g. CCs return
+                    # coefficient and time shift.
+                    mfs = fct(l_tr, h_tr)
+                    if isinstance(mfs, dict):
+                        mfs = [mfs]
+                    for mf in mfs:
+                        collected_misfits[mf["name"]].append(mf)
 
                 # plt.subplot(count, 1, _i + 2)
                 # plt.plot(h_tr.data, color="red")
@@ -428,35 +443,40 @@ class WFDiff(object):
 
             # plt.show()
 
-
-            r = {
-                "network": job.network,
-                "station": job.station,
-                "component": job.component,
-                "latitude": job.latitude,
-                "longitude": job.longitude,
-                "periods": np.array(self.periods),
-                "misfit_values": np.array(misfit_values),
-                "misfit_type": misfit_type
-            }
-            results.append(r)
+            # Now assemble a frequency dependent misfit measurement for each
+            # final misfit type.
+            for key, value in collected_misfits.items():
+                r = {
+                    "network": job.network,
+                    "station": job.station,
+                    "component": job.component,
+                    "latitude": job.latitude,
+                    "longitude": job.longitude,
+                    "periods": list(self.periods),
+                    "misfit_values": [_i["value"] for _i in value],
+                    "misfit_name": value[0]["name"],
+                    "misfit_pretty_name": value[0]["pretty_name"],
+                    "misfit_logarithmic_plot": value[0]["logarithmic_plot"]
+                }
+                results.append(r)
 
             if COMM.rank == 0:
-                print("Approximately %i of %i channels have been processed."
-                      % (min((jobnum + 1) * MPI.COMM_WORLD.size, total_length),
-                         total_length))
+                logger.info(
+                    "Approximately %i of %i channels have been processed." % (
+                    min((jobnum + 1) * MPI.COMM_WORLD.size, total_length),
+                        total_length))
 
         # Gather and store results on disc.
         gathered_results = MPI.COMM_WORLD.gather(results, root=0)
         if COMM.rank == 0:
-            results = Results(misfit_type=pretty_misfit_name)
+            results = Results()
 
             for _i in gathered_results:
                 for _j in _i:
                     results.add_result(_j)
 
             results.dump(os.path.join(output_directory, "results.json"))
-            results.plot_misfits(output_directory)
+            #results.plot_misfits(output_directory)
 
 
     def _find_waveform_files(self):

@@ -101,7 +101,7 @@ def preprocess_traces(tr_a, tr_b, data_units, desired_units, starttime=None,
         endtime = st[0].stats.starttime + endtime
     st.trim(starttime=starttime, endtime=endtime)
 
-    # Detrend, demean, taper to stabilize the filter.
+    # Detrend, demean, taper to stabilize the filters that will follow.
     st.detrend("demean")
     st.detrend("linear")
     st.taper(type="hann", max_percentage=0.03)

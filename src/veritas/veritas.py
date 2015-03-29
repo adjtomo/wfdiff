@@ -56,12 +56,23 @@ class Results(object):
         self.__results = {}
         self.misfit_type = misfit_type
 
+    @staticmethod
+    def load(filename):
+        with open(filename, "r") as fh:
+            _results = json.load(fh)
+        results = Results(misfit_type=_results["misfit_type"])
+        for result in _results.values():
+            if not isinstance(result, dict):
+                results.add_result(result)
+        return results
+
     def add_result(self, result):
         self.__results[(result["network"], result["station"],
                         result["component"])] = result
 
-    def write(self, filename):
+    def dump(self, filename):
         _results = {}
+        _results["misfit_type"] = self.misfit_type
         for _i in self.__results.values():
             _results["{network}.{station}.{component}".format(**_i)] = _i
 
@@ -429,7 +440,7 @@ class WFDiff(object):
                 for _j in _i:
                     results.add_result(_j)
 
-            results.write(os.path.join(output_directory, "results.json"))
+            results.dump(os.path.join(output_directory, "results.json"))
             results.plot_misfits(output_directory)
 
 

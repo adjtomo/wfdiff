@@ -21,6 +21,7 @@ import json
 import os
 
 import obspy
+import matplotlib.pylab as plt
 from mpi4py import MPI
 import numpy as np
 
@@ -28,11 +29,20 @@ from . import logger
 from . import misfits
 from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
+plt.style.use("ggplot")
+
 COMM = MPI.COMM_WORLD
 
 Channel = namedtuple("Channel", ["network", "station", "component",
                                  "latitude", "longitude", "filename_high",
                                  "filename_low"])
+
+MISFIT_MAP = {
+    "l2_norm": (misfits.l2_norm, "L2 Norm"),
+    "l1_norm": (misfits.l1_norm, "L1 Norm"),
+    "x_corr_time_shift": (misfits.x_corr_time_shift, "CC Time Shift"),
+    "x_corr_value": (misfits.x_corr_value, "CC Value")
+}
 
 class NumPyJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -42,8 +52,9 @@ class NumPyJSONEncoder(json.JSONEncoder):
 
 
 class Results(object):
-    def __init__(self):
+    def __init__(self, misfit_type):
         self.__results = {}
+        self.misfit_type = misfit_type
 
     def add_result(self, result):
         self.__results[(result["network"], result["station"],
@@ -58,13 +69,29 @@ class Results(object):
             json.dump(_results, fh, sort_keys=True, indent=4,
                       separators=(",", ": "), cls=NumPyJSONEncoder)
 
+    @property
+    def components(self):
+        """
+        Set of components that have results.
+        """
+        return set([_i[2] for _i in self.__results.keys()])
 
-MISFIT_MAP = {
-    "l2_norm": misfits.l2_norm,
-    "l1_norm": misfits.l1_norm,
-    "x_corr_time_shift": misfits.x_corr_time_shift,
-    "x_corr_value": misfits.x_corr_value
-}
+    def filter(self, component):
+        return [_i for _i in self.__results.values()
+                if _i["component"] == component]
+
+    def plot_misfits(self, output_directory):
+        for component in self.components:
+            for result in self.filter(component):
+                plt.semilogy(result["periods"], result["misfit_values"])
+            plt.title("%s misfit curves for component %s" % (
+                self.misfit_type, component))
+            plt.xlabel("Lowpass Period [s]")
+            plt.ylabel("%s" % self.misfit_type)
+            filename = os.path.join(
+                output_directory, "%s_misfit_curves_component_%s.pdf" % (
+                    self.misfit_type.lower().replace(" ", "_"), component))
+            plt.savefig(filename)
 
 
 class WaveformDataSet(object):
@@ -278,7 +305,8 @@ class WFDiff(object):
         COMM.barrier()
 
     def run(self, misfit_type, threshold, output_directory):
-        misfit_fct = MISFIT_MAP[misfit_type]
+        misfit_fct = MISFIT_MAP[misfit_type][0]
+        pretty_misfit_name = MISFIT_MAP[misfit_type][1]
 
 
         def split(container, count):
@@ -316,7 +344,7 @@ class WFDiff(object):
         jobs = COMM.scatter(jobs, root=0)
         results = []
 
-        for _i, job in enumerate(jobs):
+        for jobnum, job in enumerate(jobs):
             if self.is_specfem_ascii:
                 tr_high = read_specfem_ascii_waveform_file(
                     job.filename_high, network=job.network,
@@ -349,9 +377,6 @@ class WFDiff(object):
             periods = []
             misfit_values = []
 
-            import time
-            a = time.time()
-
             # import matplotlib.pylab as plt
             # plt.figure()
             # count = len(self.periods) + 1
@@ -377,31 +402,6 @@ class WFDiff(object):
 
             # plt.show()
 
-            periods = np.array(periods)
-            misfit_values = np.array(misfit_values)
-
-            # We go from low to high periods. Thus we want to find the first
-            # value below the chosen threshold.
-            this_threshold = misfit_values.min() + (misfit_values.ptp() *
-                                                    threshold)
-            idx = np.argmax(misfit_values[::-1] > this_threshold) - 1
-
-            value = periods[-idx]
-
-            import matplotlib.pylab as plt
-            plt.style.use("ggplot")
-            plt.close()
-            plt.figure()
-            plt.plot(periods, np.log10(misfit_values))
-            plt.xlabel("Minimum period [s]")
-            plt.ylabel("log10(wdiff)")
-            plt.scatter([periods[-idx]], [misfit_values[-idx]], marker="o")
-            plt.xlim(periods[0], periods[-1])
-            # plt.hlines(-1, periods[0], periods[-1])
-            plt.savefig(os.path.join(
-                output_directory,
-                "%s_%s_%s.png" % (job.network, job.station,job.component)))
-
 
             r = {
                 "network": job.network,
@@ -409,31 +409,28 @@ class WFDiff(object):
                 "component": job.component,
                 "latitude": job.latitude,
                 "longitude": job.longitude,
-                "periods": self.periods,
-                "misfit_values": misfit_values,
+                "periods": np.array(self.periods),
+                "misfit_values": np.array(misfit_values),
                 "misfit_type": misfit_type
             }
             results.append(r)
 
-            b = time.time()
-            print("Time taken: ", b - a)
-
             if COMM.rank == 0:
-                print("Approximately %i of %i items have been processed." % (
-                    min((_i + 1) * MPI.COMM_WORLD.size, total_length),
-                    total_length))
+                print("Approximately %i of %i channels have been processed."
+                      % (min((jobnum + 1) * MPI.COMM_WORLD.size, total_length),
+                         total_length))
 
+        # Gather and store results on disc.
         gathered_results = MPI.COMM_WORLD.gather(results, root=0)
-
-        results = Results()
-
         if COMM.rank == 0:
+            results = Results(misfit_type=pretty_misfit_name)
+
             for _i in gathered_results:
                 for _j in _i:
                     results.add_result(_j)
 
             results.write(os.path.join(output_directory, "results.json"))
-
+            results.plot_misfits(output_directory)
 
 
     def _find_waveform_files(self):

@@ -34,9 +34,29 @@ Channel = namedtuple("Channel", ["network", "station", "component",
                                  "latitude", "longitude", "filename_high",
                                  "filename_low"])
 
-Result = namedtuple("Result", ["network", "station", "component",
-                               "latitude", "longitude",  "misfit_type",
-                               "threshold_frequency"])
+class NumPyJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return json.dumps(list(map(float, obj)))
+        return json.JSONEncoder.default(self, obj)
+
+
+class Results(object):
+    def __init__(self):
+        self.__results = {}
+
+    def add_result(self, result):
+        self.__results[(result["network"], result["station"],
+                        result["component"])] = result
+
+    def write(self, filename):
+        _results = {}
+        for _i in self.__results.values():
+            _results["{network}.{station}.{component}".format(**_i)] = _i
+
+        with open(filename, "w") as fh:
+            json.dump(_results, fh, sort_keys=True, indent=4,
+                      separators=(",", ": "), cls=NumPyJSONEncoder)
 
 
 MISFIT_MAP = {
@@ -389,10 +409,11 @@ class WFDiff(object):
                 "component": job.component,
                 "latitude": job.latitude,
                 "longitude": job.longitude,
-                "misfit_type": misfit_type,
-                "threshold_frequency": value
+                "periods": self.periods,
+                "misfit_values": misfit_values,
+                "misfit_type": misfit_type
             }
-            results.append([(job.network, job.station, job.component), r])
+            results.append(r)
 
             b = time.time()
             print("Time taken: ", b - a)
@@ -402,15 +423,17 @@ class WFDiff(object):
                     min((_i + 1) * MPI.COMM_WORLD.size, total_length),
                     total_length))
 
-        results = MPI.COMM_WORLD.gather(results, root=0)
+        gathered_results = MPI.COMM_WORLD.gather(results, root=0)
+
+        results = Results()
 
         if COMM.rank == 0:
-            results = {_i[0]: _i[1] for _i in results}
+            for _i in gathered_results:
+                for _j in _i:
+                    results.add_result(_j)
 
-            with open(os.path.join(output_directory,
-                                   "results.json"), "w") as fh:
-                json.dump(results, fh, sort_keys=True, indent=4,
-                          separators=(",", ": "))
+            results.write(os.path.join(output_directory, "results.json"))
+
 
 
     def _find_waveform_files(self):

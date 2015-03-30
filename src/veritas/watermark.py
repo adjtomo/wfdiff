@@ -21,7 +21,7 @@ from time import strftime
 
 # Dependencies.
 modules = ["numpy", "scipy", "matplotlib", "obspy", "lxml", "future", "mpi4py",
-           "basemap"]
+           "basemap", "pandas"]
 
 
 def get_watermark():

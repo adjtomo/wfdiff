@@ -1,0 +1,190 @@
+
+wfdiff
+======
+
+.. warning::
+
+    This package is work in progress and **NOT YET READY FOR PRODUCTIVE USE**.
+The source code for ``wfdiff`` lives on Github:
+https://github.com/krischer/wfdiff. If you encounter any problems with
+it please open an issue or submit a pull request.
+
+Installation
+------------
+
+Installing Python and Dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``wfdiff`` has a couple of dependencies. If you are well versed in
+Python, then the installation should not prove an issue, otherwise,
+please follow the advice here and download the `Anaconda Python
+distribution <http://continuum.io/downloads>`_ for your system. In case
+you don't know which version to choose, choose Python 3.4. ``wfdiff``
+nonetheless also works with Python 2.7, 3.3, and 3.4.
+
+After downloading and installing Anaconda, update it with
+
+::
+
+    $ conda update conda
+
+Then create a new environment. You don't have to, but using a new
+environment grants a clean seperation between Python installations.
+
+::
+
+    $ conda create -n wfdiff python=3.4
+
+This will create a new conda environment based on Python 3.4 named
+``wfdiff``. Activate it with
+
+::
+
+    $ source activate wfdiff
+
+(On windows just with ``$ activate wfdiff``). Remember to activate it
+everytime you want to use ``wfdiff``.
+
+Now install ObsPy with
+
+::
+
+    $ conda install -c obspy obspy
+
+and the remaining dependencies with
+
+::
+
+    $ conda install mpi4py basemap pandas flake8 pytest
+
+.. note::
+
+    Depending on your cluster, the ``mpi4py`` shipping with Anaconda might not work with the MPI on your machine. In that case, simply uninstall ``mpi4py`` from conda.
+    
+    .. code-block:: bash
+    
+        $ conda remove mpi4py
+        
+    make sure the correct mpi is active (e.g. ``mpicc`` and consorts point to the correct executables) and install ``mpi4py`` with
+    
+    .. code-block:: bash
+    
+        $ conda install pip
+        $ pip install mpi4py
+        
+    This will cause ``mpi4py`` to be compiled with the MPI compiler on your system which should resolve any issues.
+Install wfdiff
+~~~~~~~~~~~~~~
+
+To install it, best use ``pip`` (does not yet work):
+
+::
+
+    $ pip install wfdiff
+
+If you want the latest development version, or want to work on the code,
+you will have to install with the help of ``git``.
+
+::
+
+    $ git clone https://github.com/krischer/wfdiff.git
+    $ cd wfdiff
+    $ pip install -v -e .
+
+Tests
+-----
+
+To assure the installation is valid and everything works as expected,
+run the tests with
+
+::
+
+    $ python -m wfdiff.tests
+
+Running wfdiff
+--------------
+
+To run it, create a Python file, e.g. ``run_wfdiff.py`` with the
+following content:
+
+::
+
+    from wfdiff.wfdiff import WFDiff
+
+    # A non-existant directory where the output will be stored.
+    OUTPUT_DIRECTORY = "output"
+
+    # Choose which misfits you want and the threshold values.
+    THRESHOLDS = {
+        "rms": 0.25,
+        "l1_norm": 0.3}
+    # A couple more misfits are available.
+    # These currently take a long time to calculate.
+    #    "cross_correlation": 0.9,
+    #    "phase_misfit": 0.1,
+    #    "envelope_misfit": 0.1}
+
+
+    # SPECFEM encoded information in the filenames and the way this
+    # is done differs depending on the SPECFEM version. This function
+    # will be used to extract network id, station id, and the component
+    # from any waveform file encountered in case SPECFEM ASCII output
+    # is used.
+    def get_net_sta_comp(filename):
+        sta, net, chan, _ = filename.split(".")
+        return net, sta, chan[-1]
+
+    # Configuration.
+    c = WFDiff(
+        # Low resolution waveform files. UNIX wildcards must be used.
+        low_res_seismos="../numres_test/gll5/OUTPUT_FILES_9882329/SEIS/*.semd",
+        # High resolution waveform files. UNIX wildcards must be used.
+        high_res_seismos="../numres_test/gll7/OUTPUT_FILES_9882329/SEIS/*.semd",
+        # Stations file.
+        station_info="../numres_test/gll5/OUTPUT_FILES_9882329/STATIONS",
+        # Specify the units of the data and the units the analysis should take
+        # place in.
+        data_units="displacement", desired_analysis_units="displacement",
+        # Periods to test.
+        t_min=1, t_max=8, dt=0.5,
+        get_net_sta_comp_fct=get_net_sta_comp,
+        # Set to True if waveform ASCII files are used. All other fileformat
+        # should otherwise work just fine.
+        is_specfem_ascii=True,
+        # Data window to take into account in seconds since the first sample.
+        starttime=0, endtime=199)
+
+    # Perform the frequency dependent misfit measurements. Results will be stored
+    # in 'results.json' in the output directory. This file can later be read again
+    # if necessary to perform the subsequent analysis.
+    results = c.run(
+        misfit_types=list(THRESHOLDS.keys()),
+        output_directory=OUTPUT_DIRECTORY,
+        # Setting this to True will create A LOT of debug plots which are very useful
+        # to tune the algorithm to the problem at hand. For production runs set this to
+        # False.
+        save_debug_plots=True)
+
+
+    # This produces all kinds of plots for all components and misfits it encounters.
+    results.plot_all(
+        output_directory=OUTPUT_DIRECTORY,
+        thresholds=THRESHOLDS)
+
+Run it with
+
+::
+
+    $ python run_wfdiff.py
+
+As these calculations can potentially take a long time, you can also run
+it with MPI:
+
+::
+
+    $ mpirun -n 16 python run_wfdiff.py
+
+The public interfaces of ``wfdiff`` can correctly deal with MPI and will
+parallelize the code if possible. Please make sure to not run anything
+else in the Python file or be aware of what is actually happening.
+

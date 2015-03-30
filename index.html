@@ -1,0 +1,264 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>wfdiff &mdash; wfdiff 0.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/readable.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+    <link rel="top" title="wfdiff 0.0.0 documentation" href="#" />
+   
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body>
+  
+  
+  <div class="indexwrapper">
+  
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li><a href="#">wfdiff 0.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="wfdiff">
+<h1>wfdiff<a class="headerlink" href="#wfdiff" title="Permalink to this headline">¶</a></h1>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This package is work in progress and <strong>NOT YET READY FOR PRODUCTIVE USE</strong>.</p>
+</div>
+<p>The source code for <tt class="docutils literal"><span class="pre">wfdiff</span></tt> lives on Github:
+<a class="reference external" href="https://github.com/krischer/wfdiff">https://github.com/krischer/wfdiff</a>. If you encounter any problems with
+it please open an issue or submit a pull request.</p>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="installing-python-and-dependencies">
+<h3>Installing Python and Dependencies<a class="headerlink" href="#installing-python-and-dependencies" title="Permalink to this headline">¶</a></h3>
+<p><tt class="docutils literal"><span class="pre">wfdiff</span></tt> has a couple of dependencies. If you are well versed in
+Python, then the installation should not prove an issue, otherwise,
+please follow the advice here and download the <a class="reference external" href="http://continuum.io/downloads">Anaconda Python
+distribution</a> for your system. In case
+you don&#8217;t know which version to choose, choose Python 3.4. <tt class="docutils literal"><span class="pre">wfdiff</span></tt>
+nonetheless also works with Python 2.7, 3.3, and 3.4.</p>
+<p>After downloading and installing Anaconda, update it with</p>
+<div class="highlight-python"><div class="highlight"><pre>$ conda update conda
+</pre></div>
+</div>
+<p>Then create a new environment. You don&#8217;t have to, but using a new
+environment grants a clean seperation between Python installations.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ conda create -n wfdiff python=3.4
+</pre></div>
+</div>
+<p>This will create a new conda environment based on Python 3.4 named
+<tt class="docutils literal"><span class="pre">wfdiff</span></tt>. Activate it with</p>
+<div class="highlight-python"><div class="highlight"><pre>$ source activate wfdiff
+</pre></div>
+</div>
+<p>(On windows just with <tt class="docutils literal"><span class="pre">$</span> <span class="pre">activate</span> <span class="pre">wfdiff</span></tt>). Remember to activate it
+everytime you want to use <tt class="docutils literal"><span class="pre">wfdiff</span></tt>.</p>
+<p>Now install ObsPy with</p>
+<div class="highlight-python"><div class="highlight"><pre>$ conda install -c obspy obspy
+</pre></div>
+</div>
+<p>and the remaining dependencies with</p>
+<div class="highlight-python"><div class="highlight"><pre>$ conda install mpi4py basemap pandas flake8 pytest
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Depending on your cluster, the <tt class="docutils literal"><span class="pre">mpi4py</span></tt> shipping with Anaconda might not work with the MPI on your machine. In that case, simply uninstall <tt class="docutils literal"><span class="pre">mpi4py</span></tt> from conda.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>conda remove mpi4py
+</pre></div>
+</div>
+<p>make sure the correct mpi is active (e.g. <tt class="docutils literal"><span class="pre">mpicc</span></tt> and consorts point to the correct executables) and install <tt class="docutils literal"><span class="pre">mpi4py</span></tt> with</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>conda install pip
+<span class="nv">$ </span>pip install mpi4py
+</pre></div>
+</div>
+<p class="last">This will cause <tt class="docutils literal"><span class="pre">mpi4py</span></tt> to be compiled with the MPI compiler on your system which should resolve any issues.</p>
+</div>
+</div>
+<div class="section" id="install-wfdiff">
+<h3>Install wfdiff<a class="headerlink" href="#install-wfdiff" title="Permalink to this headline">¶</a></h3>
+<p>To install it, best use <tt class="docutils literal"><span class="pre">pip</span></tt> (does not yet work):</p>
+<div class="highlight-python"><div class="highlight"><pre>$ pip install wfdiff
+</pre></div>
+</div>
+<p>If you want the latest development version, or want to work on the code,
+you will have to install with the help of <tt class="docutils literal"><span class="pre">git</span></tt>.</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git clone https://github.com/krischer/wfdiff.git
+$ cd wfdiff
+$ pip install -v -e .
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="tests">
+<h2>Tests<a class="headerlink" href="#tests" title="Permalink to this headline">¶</a></h2>
+<p>To assure the installation is valid and everything works as expected,
+run the tests with</p>
+<div class="highlight-python"><div class="highlight"><pre>$ python -m wfdiff.tests
+</pre></div>
+</div>
+</div>
+<div class="section" id="running-wfdiff">
+<h2>Running wfdiff<a class="headerlink" href="#running-wfdiff" title="Permalink to this headline">¶</a></h2>
+<p>To run it, create a Python file, e.g. <tt class="docutils literal"><span class="pre">run_wfdiff.py</span></tt> with the
+following content:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">wfdiff.wfdiff</span> <span class="kn">import</span> <span class="n">WFDiff</span>
+
+<span class="c"># A non-existant directory where the output will be stored.</span>
+<span class="n">OUTPUT_DIRECTORY</span> <span class="o">=</span> <span class="s">&quot;output&quot;</span>
+
+<span class="c"># Choose which misfits you want and the threshold values.</span>
+<span class="n">THRESHOLDS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&quot;rms&quot;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+    <span class="s">&quot;l1_norm&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">}</span>
+<span class="c"># A couple more misfits are available.</span>
+<span class="c"># These currently take a long time to calculate.</span>
+<span class="c">#    &quot;cross_correlation&quot;: 0.9,</span>
+<span class="c">#    &quot;phase_misfit&quot;: 0.1,</span>
+<span class="c">#    &quot;envelope_misfit&quot;: 0.1}</span>
+
+
+<span class="c"># SPECFEM encoded information in the filenames and the way this</span>
+<span class="c"># is done differs depending on the SPECFEM version. This function</span>
+<span class="c"># will be used to extract network id, station id, and the component</span>
+<span class="c"># from any waveform file encountered in case SPECFEM ASCII output</span>
+<span class="c"># is used.</span>
+<span class="k">def</span> <span class="nf">get_net_sta_comp</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="n">sta</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">net</span><span class="p">,</span> <span class="n">sta</span><span class="p">,</span> <span class="n">chan</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="c"># Configuration.</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">WFDiff</span><span class="p">(</span>
+    <span class="c"># Low resolution waveform files. UNIX wildcards must be used.</span>
+    <span class="n">low_res_seismos</span><span class="o">=</span><span class="s">&quot;../numres_test/gll5/OUTPUT_FILES_9882329/SEIS/*.semd&quot;</span><span class="p">,</span>
+    <span class="c"># High resolution waveform files. UNIX wildcards must be used.</span>
+    <span class="n">high_res_seismos</span><span class="o">=</span><span class="s">&quot;../numres_test/gll7/OUTPUT_FILES_9882329/SEIS/*.semd&quot;</span><span class="p">,</span>
+    <span class="c"># Stations file.</span>
+    <span class="n">station_info</span><span class="o">=</span><span class="s">&quot;../numres_test/gll5/OUTPUT_FILES_9882329/STATIONS&quot;</span><span class="p">,</span>
+    <span class="c"># Specify the units of the data and the units the analysis should take</span>
+    <span class="c"># place in.</span>
+    <span class="n">data_units</span><span class="o">=</span><span class="s">&quot;displacement&quot;</span><span class="p">,</span> <span class="n">desired_analysis_units</span><span class="o">=</span><span class="s">&quot;displacement&quot;</span><span class="p">,</span>
+    <span class="c"># Periods to test.</span>
+    <span class="n">t_min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">t_max</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">get_net_sta_comp_fct</span><span class="o">=</span><span class="n">get_net_sta_comp</span><span class="p">,</span>
+    <span class="c"># Set to True if waveform ASCII files are used. All other fileformat</span>
+    <span class="c"># should otherwise work just fine.</span>
+    <span class="n">is_specfem_ascii</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="c"># Data window to take into account in seconds since the first sample.</span>
+    <span class="n">starttime</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">endtime</span><span class="o">=</span><span class="mi">199</span><span class="p">)</span>
+
+<span class="c"># Perform the frequency dependent misfit measurements. Results will be stored</span>
+<span class="c"># in &#39;results.json&#39; in the output directory. This file can later be read again</span>
+<span class="c"># if necessary to perform the subsequent analysis.</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+    <span class="n">misfit_types</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">THRESHOLDS</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+    <span class="n">output_directory</span><span class="o">=</span><span class="n">OUTPUT_DIRECTORY</span><span class="p">,</span>
+    <span class="c"># Setting this to True will create A LOT of debug plots which are very useful</span>
+    <span class="c"># to tune the algorithm to the problem at hand. For production runs set this to</span>
+    <span class="c"># False.</span>
+    <span class="n">save_debug_plots</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+
+<span class="c"># This produces all kinds of plots for all components and misfits it encounters.</span>
+<span class="n">results</span><span class="o">.</span><span class="n">plot_all</span><span class="p">(</span>
+    <span class="n">output_directory</span><span class="o">=</span><span class="n">OUTPUT_DIRECTORY</span><span class="p">,</span>
+    <span class="n">thresholds</span><span class="o">=</span><span class="n">THRESHOLDS</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Run it with</p>
+<div class="highlight-python"><div class="highlight"><pre>$ python run_wfdiff.py
+</pre></div>
+</div>
+<p>As these calculations can potentially take a long time, you can also run
+it with MPI:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ mpirun -n 16 python run_wfdiff.py
+</pre></div>
+</div>
+<p>The public interfaces of <tt class="docutils literal"><span class="pre">wfdiff</span></tt> can correctly deal with MPI and will
+parallelize the code if possible. Please make sure to not run anything
+else in the Python file or be aware of what is actually happening.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="#">
+              <img class="logo" src="_static/logo.svg" alt="Logo"/>
+            </a></p>
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">wfdiff</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a><ul>
+<li><a class="reference internal" href="#installing-python-and-dependencies">Installing Python and Dependencies</a></li>
+<li><a class="reference internal" href="#install-wfdiff">Install wfdiff</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tests">Tests</a></li>
+<li><a class="reference internal" href="#running-wfdiff">Running wfdiff</a></li>
+</ul>
+</li>
+</ul>
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation index</a><ul>
+  </ul></li>
+</ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <div class="footer">
+    &copy; Copyright 2015, Lion Krischer and Carl Tape.
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+  </div>
+  
+  </div>
+  
+  </body>
+</html>

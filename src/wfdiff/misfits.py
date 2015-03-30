@@ -32,11 +32,13 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from future.builtins import *  # NOQA
 
+from obspy.signal import tf_misfit
 import numpy as np
 
 
 # Add all misfits function here! Otherwise they will not be discovered.
-__all__ = ["rms", "l1_norm", "cross_correlation"]
+__all__ = ["rms", "l1_norm", "cross_correlation", "envelope_misfit",
+           "phase_misfit"]
 
 
 def rms(tr1, tr2):
@@ -84,4 +86,48 @@ def cross_correlation(tr1, tr2):
             "value": max_cc_value,
             # The larger the correlation, the better.
             "minimizing_misfit": False
+    }
+
+
+def phase_misfit(tr1, tr2):
+    """
+    Single valued phase misfit after Kristekova 2009.
+    """
+    # XXX: This needs some way to configure it!
+    # Go from 5 times Nyquist to 100 seconds.
+    nyquist = tr1.stats.sampling_rate * 0.5
+    f_max = nyquist / 5
+    f_min = 1.0 / 100.0
+
+    value = tf_misfit.pm(tr1.data, tr2.data, tr1.stats.delta, fmin=f_min,
+                         nf=10, fmax=f_max)
+
+    return {
+        "name": "phase_misfit",
+        "pretty_name": "Time Frequency Phase Misfit",
+        "logarithmic_plot": False,
+        "value": value,
+        "minimizing_misfit": True
+    }
+
+
+def envelope_misfit(tr1, tr2):
+    """
+    Single valued envelope misfit after Kristekova 2009.
+    """
+    # XXX: This needs some way to configure it!
+    # Go from 5 times Nyquist to 100 seconds.
+    nyquist = tr1.stats.sampling_rate * 0.5
+    f_max = nyquist / 5
+    f_min = 1.0 / 100.0
+
+    value = tf_misfit.em(tr1.data, tr2.data, tr1.stats.delta, fmin=f_min,
+                         nf=10, fmax=f_max)
+
+    return {
+        "name": "envelope_misfit",
+        "pretty_name": "Time Frequency Envelope Misfit",
+        "logarithmic_plot": False,
+        "value": value,
+        "minimizing_misfit": True
     }

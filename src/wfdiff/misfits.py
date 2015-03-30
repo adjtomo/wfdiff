@@ -36,30 +36,32 @@ import numpy as np
 
 
 # Add all misfits function here! Otherwise they will not be discovered.
-__all__ = ["l2_norm", "l1_norm", "cross_correlation"]
+__all__ = ["rms", "l1_norm", "cross_correlation"]
 
 
-def l2_norm(tr1, tr2):
+def rms(tr1, tr2):
     """
-    L2 norm normalized by the integrated energy of the second trace.
+    Root mean square misfit. Reference is the integrated energy of the
+    second trace.
     """
     return {
-        "name": "l2_norm",
-        "pretty_name": "Normalized L2 Norm",
-        "value": np.sum((tr1.data - tr2.data) ** 2) / np.sum(tr2.data ** 2),
-        "logarithmic_plot": True,
+        "name": "rms",
+        "pretty_name": "Root Mean Square Misfit",
+        "value": np.sqrt(np.sum((tr1.data - tr2.data) ** 2) /
+                         np.sum(tr2.data ** 2)),
+        "logarithmic_plot": False,
         "minimizing_misfit": True
     }
 
 
 def l1_norm(tr1, tr2):
     """
-    Normalized L1 norm between two traces. Reference is the L1 norm of the
-    second trace.
+    Normalized waveform difference between two traces. Reference is the L1
+    norm of the second trace.
     """
     return {
         "name": "l1_norm",
-        "pretty_name": "Normalized L1 Norm",
+        "pretty_name": "Normalized Waveform Difference",
         "logarithmic_plot": True,
         "value": np.abs(tr1.data - tr2.data).sum() / np.sum(np.abs(tr2.data)),
         "minimizing_misfit": True

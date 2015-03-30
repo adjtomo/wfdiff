@@ -38,6 +38,20 @@ Channel = namedtuple("Channel", ["network", "station", "component",
                                  "filename_low"])
 
 
+def split(container, count):
+    """
+    Simple and elegant function splitting a container into count
+    equal chunks.
+
+    Order is not preserved but for the use case at hand this is
+    potentially an advantage as data sitting in the same folder thus
+    have a higher at being processed at the same time thus the disc
+    head does not have to jump around so much. Of course very
+    architecture dependent.
+    """
+    return [container[_i::count] for _i in range(count)]
+
+
 class Results(object):
     def __init__(self):
         self.__misfit_measurements = {}
@@ -120,22 +134,33 @@ class Results(object):
             raise ValueError("Must specify thresholds for all available "
                              "misfits: '%s'" % self.available_misfits)
 
-        for misfit in self.available_misfits:
-            for component in self.get_available_components_for_misfit(misfit):
-                visualization.plot_misfit_curves(
-                    items=self.filter(misfit, component),
-                    threshold=thresholds[misfit],
-                    threshold_is_upper_limit=self.__misfit_measurements[
-                        misfit]["minimizing_misfit"],
-                    logarithmic = self.__misfit_measurements[misfit][
-                        "misfit_logarithmic_plot"],
-                    component=component,
-                    pretty_misfit_name= self.__misfit_measurements[misfit][
-                        "misfit_pretty_name"],
-                    filename= os.path.join(
-                        output_directory,
-                        "%s_misfit_curves_component_%s.pdf" % (misfit,
-                                                               component)))
+        if COMM.rank == 0:
+            jobs = []
+            for misfit in self.available_misfits:
+                for component in \
+                        self.get_available_components_for_misfit(misfit):
+                    jobs.append((misfit, component))
+            jobs = split(jobs, COMM.size)
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+
+        for misfit, component in jobs:
+            visualization.plot_misfit_curves(
+                items=self.filter(misfit, component),
+                threshold=thresholds[misfit],
+                threshold_is_upper_limit=self.__misfit_measurements[
+                    misfit]["minimizing_misfit"],
+                logarithmic = self.__misfit_measurements[misfit][
+                    "misfit_logarithmic_plot"],
+                component=component,
+                pretty_misfit_name= self.__misfit_measurements[misfit][
+                    "misfit_pretty_name"],
+                filename= os.path.join(
+                    output_directory,
+                    "%s_misfit_curves_component_%s.pdf" % (misfit,
+                                                           component)))
 
     def plot_histograms(self, thresholds, output_directory):
         # Make sure all thresholds are available.
@@ -143,19 +168,30 @@ class Results(object):
             raise ValueError("Must specify thresholds for all available "
                              "misfits: '%s'" % self.available_misfits)
 
-        for misfit in self.available_misfits:
-            for component in self.get_available_components_for_misfit(misfit):
-                visualization.plot_histogram(
-                    items=self.filter(misfit, component),
-                    threshold=thresholds[misfit],
-                    threshold_is_upper_limit=self.__misfit_measurements[
-                        misfit]["minimizing_misfit"],
-                    component=component,
-                    pretty_misfit_name= self.__misfit_measurements[misfit][
-                        "misfit_pretty_name"],
-                    filename= os.path.join(
-                        output_directory,
-                        "%s_histogram_component_%s.pdf" % (misfit, component)))
+        if COMM.rank == 0:
+            jobs = []
+            for misfit in self.available_misfits:
+                for component in \
+                        self.get_available_components_for_misfit(misfit):
+                    jobs.append((misfit, component))
+            jobs = split(jobs, COMM.size)
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+
+        for misfit, component in jobs:
+            visualization.plot_histogram(
+                items=self.filter(misfit, component),
+                threshold=thresholds[misfit],
+                threshold_is_upper_limit=self.__misfit_measurements[
+                    misfit]["minimizing_misfit"],
+                component=component,
+                pretty_misfit_name= self.__misfit_measurements[misfit][
+                    "misfit_pretty_name"],
+                filename= os.path.join(
+                    output_directory,
+                    "%s_histogram_component_%s.pdf" % (misfit, component)))
 
     def plot_maps(self, thresholds, output_directory):
         # Make sure all thresholds are available.
@@ -163,19 +199,30 @@ class Results(object):
             raise ValueError("Must specify thresholds for all available "
                              "misfits: '%s'" % self.available_misfits)
 
-        for misfit in self.available_misfits:
-            for component in self.get_available_components_for_misfit(misfit):
-                visualization.plot_map(
-                    items=self.filter(misfit, component),
-                    threshold=thresholds[misfit],
-                    threshold_is_upper_limit=self.__misfit_measurements[
-                        misfit]["minimizing_misfit"],
-                    component=component,
-                    pretty_misfit_name= self.__misfit_measurements[misfit][
-                        "misfit_pretty_name"],
-                    filename= os.path.join(
-                        output_directory,
-                        "%s_map_component_%s.pdf" % (misfit, component)))
+        if COMM.rank == 0:
+            jobs = []
+            for misfit in self.available_misfits:
+                for component in \
+                        self.get_available_components_for_misfit(misfit):
+                    jobs.append((misfit, component))
+            jobs = split(jobs, COMM.size)
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+
+        for misfit, component in jobs:
+            visualization.plot_map(
+                items=self.filter(misfit, component),
+                threshold=thresholds[misfit],
+                threshold_is_upper_limit=self.__misfit_measurements[
+                    misfit]["minimizing_misfit"],
+                component=component,
+                pretty_misfit_name= self.__misfit_measurements[misfit][
+                    "misfit_pretty_name"],
+                filename= os.path.join(
+                    output_directory,
+                    "%s_map_component_%s.pdf" % (misfit, component)))
 
     def plot_all(self, thresholds, output_directory):
         # Make sure all thresholds are available.
@@ -433,31 +480,19 @@ class WFDiff(object):
                                                      misfits.__all__])))
             misfit_functions[m_type] = fct
 
-        def split(container, count):
-            """
-            Simple and elegant function splitting a container into count
-            equal chunks.
-
-            Order is not preserved but for the use case at hand this is
-            potentially an advantage as data sitting in the same folder thus
-            have a higher at being processed at the same time thus the disc
-            head does not have to jump around so much. Of course very
-            architecture dependent.
-            """
-            return [container[_i::count] for _i in range(count)]
-
         if os.path.exists(output_directory):
             raise ValueError("Directory '%s' already exists." %
                              output_directory)
 
         COMM.barrier()
 
+        debug_folder = os.path.join(output_directory, "debug_plots")
+
         # Rank zero figures out what to do and distributes it.
         if COMM.rank == 0:
             os.makedirs(output_directory)
 
             if save_debug_plots:
-                debug_folder = os.path.join(output_directory, "debug_plots")
                 if not os.path.exists(debug_folder):
                     os.makedirs(debug_folder)
 
@@ -526,6 +561,8 @@ class WFDiff(object):
                 l_tr.filter("lowpass", freq=1.0 / period, corners=3)
                 h_tr.filter("lowpass", freq=1.0 / period, corners=3)
 
+                this_misfits = {}
+
                 # Calculate each desired misfit.
                 for name, fct in misfit_functions.items():
                     # Potentially returns multiple measures, e.g. CCs return
@@ -535,6 +572,7 @@ class WFDiff(object):
                         mfs = [mfs]
                     for mf in mfs:
                         collected_misfits[mf["name"]].append(mf)
+                        this_misfits[mf["name"]] = mf["value"]
 
                 if save_debug_plots:
                     plt.subplot(len(self.periods) + 1, 1, _i + 2)
@@ -548,6 +586,14 @@ class WFDiff(object):
                             fontdict=dict(fontsize="small", ha='left',
                                           va='top'),
                             bbox=dict(boxstyle="round", fc="w", alpha=0.8))
+                    keys = sorted(this_misfits.keys())
+                    txt = ["%s: %g" % (key, this_misfits[key]) for key in keys]
+                    ax.text(0.98, 0.95, "\n".join(txt),
+                            ha="right", transform=ax.transAxes,
+                            fontdict=dict(fontsize="small", ha='right',
+                                          va='top'),
+                            bbox=dict(boxstyle="round", fc="w", alpha=0.8))
+
 
             if save_debug_plots:
                 filename = os.path.join(
@@ -590,6 +636,8 @@ class WFDiff(object):
                     results.add_result(_j)
 
             results.dump(os.path.join(output_directory, "results.json"))
+
+        results = COMM.bcast(results, root=0)
 
         return results
 

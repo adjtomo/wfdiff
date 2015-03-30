@@ -137,6 +137,26 @@ class Results(object):
                         "%s_misfit_curves_component_%s.pdf" % (misfit,
                                                                component)))
 
+    def plot_histograms(self, thresholds, output_directory):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+
+        for misfit in self.available_misfits:
+            for component in self.get_available_components_for_misfit(misfit):
+                visualization.plot_histogram(
+                    items=self.filter(misfit, component),
+                    threshold=thresholds[misfit],
+                    threshold_is_upper_limit=self.__misfit_measurements[
+                        misfit]["minimizing_misfit"],
+                    component=component,
+                    pretty_misfit_name= self.__misfit_measurements[misfit][
+                        "misfit_pretty_name"],
+                    filename= os.path.join(
+                        output_directory,
+                        "%s_histogram_component_%s.pdf" % (misfit, component)))
+
     def plot_maps(self, thresholds, output_directory):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
@@ -161,6 +181,7 @@ class Results(object):
             raise ValueError("Must specify thresholds for all available "
                              "misfits: '%s'" % self.available_misfits)
         self.plot_misfits(thresholds, output_directory)
+        self.plot_histograms(thresholds, output_directory)
 
 
 class WaveformDataSet(object):

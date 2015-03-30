@@ -56,6 +56,31 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
     plt.savefig(filename)
 
 
+def plot_histogram(items, threshold, threshold_is_upper_limit,
+                   component, pretty_misfit_name, filename):
+    plt.close()
+    plt.figure(figsize=(12, 4))
+
+    crossing_periods = []
+
+    for item in items:
+        # Find the threshold.
+        point = rightmost_threshold_crossing(
+            item["periods"], item["misfit_values"], threshold,
+            threshold_is_upper_limit)
+        crossing_periods.append(point[0])
+
+    plt.hist(crossing_periods, bins=20)
+
+    plt.title("Minimum resolvable period for %s and component %s" % (
+        pretty_misfit_name, component))
+    plt.xlabel("Lowpass Period [s]")
+    plt.ylabel("Count")
+    plt.tight_layout()
+
+    plt.savefig(filename)
+
+
 def plot_misfit_map(items, component, pretty_misfit_name, filename):
     longitudes = [_i["longitude"] for _i in items]
     latitudes = [_i["latitudes"] for _i in items]

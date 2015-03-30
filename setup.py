@@ -70,7 +70,8 @@ setup(
         "obspy>=0.10.1",
         "mpi4py",
         "flake8",
-        "pytest"
+        "pytest",
+        "nose"
     ],
     extras_require={
         "docs": ["sphinx", "ipython", "runipy"]

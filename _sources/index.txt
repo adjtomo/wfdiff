@@ -55,17 +55,17 @@ and the remaining dependencies with
 
 ::
 
-    $ conda install mpi4py basemap pandas flake8 pytest
+    $ conda install basemap pandas flake8 pytest nose
 
 .. note::
 
-    Depending on your cluster, the ``mpi4py`` shipping with Anaconda might not work with the MPI on your machine. In that case, simply uninstall ``mpi4py`` from conda.
+    Depending on your cluster, the ``mpi4py`` shipping with Anaconda might not work with the MPI on your machine. It is best to uninstall the ``mpi4py`` shipping with Anaconda:
     
     .. code-block:: bash
     
         $ conda remove mpi4py
         
-    make sure the correct mpi is active (e.g. ``mpicc`` and consorts point to the correct executables) and install ``mpi4py`` with
+    Now make sure the correct mpi is active (e.g. ``mpicc`` and consorts point to the correct executables) and install ``mpi4py`` with
     
     .. code-block:: bash
     

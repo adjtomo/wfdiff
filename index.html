@@ -87,16 +87,16 @@ everytime you want to use <tt class="docutils literal"><span class="pre">wfdiff<
 </pre></div>
 </div>
 <p>and the remaining dependencies with</p>
-<div class="highlight-python"><div class="highlight"><pre>$ conda install mpi4py basemap pandas flake8 pytest
+<div class="highlight-python"><div class="highlight"><pre>$ conda install basemap pandas flake8 pytest nose
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p>Depending on your cluster, the <tt class="docutils literal"><span class="pre">mpi4py</span></tt> shipping with Anaconda might not work with the MPI on your machine. In that case, simply uninstall <tt class="docutils literal"><span class="pre">mpi4py</span></tt> from conda.</p>
+<p>Depending on your cluster, the <tt class="docutils literal"><span class="pre">mpi4py</span></tt> shipping with Anaconda might not work with the MPI on your machine. It is best to uninstall the <tt class="docutils literal"><span class="pre">mpi4py</span></tt> shipping with Anaconda:</p>
 <div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>conda remove mpi4py
 </pre></div>
 </div>
-<p>make sure the correct mpi is active (e.g. <tt class="docutils literal"><span class="pre">mpicc</span></tt> and consorts point to the correct executables) and install <tt class="docutils literal"><span class="pre">mpi4py</span></tt> with</p>
+<p>Now make sure the correct mpi is active (e.g. <tt class="docutils literal"><span class="pre">mpicc</span></tt> and consorts point to the correct executables) and install <tt class="docutils literal"><span class="pre">mpi4py</span></tt> with</p>
 <div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>conda install pip
 <span class="nv">$ </span>pip install mpi4py
 </pre></div>

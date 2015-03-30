@@ -40,27 +40,30 @@ def rightmost_threshold_crossing(
     # Mirror on threshold. Then we only have to deal
     # with one case in the following.
     if not threshold_is_upper_limit:
-        misfit_values -= threshold
-        misfit_values *= -1.0
-        misfit_values += threshold
+        working_misfit_values = misfit_values.copy()
+        working_misfit_values -= threshold
+        working_misfit_values *= -1.0
+        working_misfit_values += threshold
+    else:
+        working_misfit_values = misfit_values
 
     # Step 1: Check rightmost value.
-    if misfit_values[-1] >= threshold:
+    if working_misfit_values[-1] >= threshold:
         return periods[-1], misfit_values[-1]
 
     # Step 2: Check all other values.
-    if np.all(misfit_values <= threshold):
+    if np.all(working_misfit_values <= threshold):
         return periods[0], misfit_values[0]
 
     # Step 3: Find the value that first crosses the threshold.
-    c_idx = np.where(misfit_values >= threshold)[0][-1]
+    c_idx = np.where(working_misfit_values >= threshold)[0][-1]
 
     # Step 4: Interpolate the two adjacent values to get a fairly
     # granular threshold intersection measurement.
     ip = np.linspace(periods[c_idx], periods[c_idx + 1], 100)
     im = np.interp(ip,
                    periods[c_idx: c_idx + 2],
-                   misfit_values[c_idx: c_idx + 2])
+                   working_misfit_values[c_idx: c_idx + 2])
     idx = np.argmin(np.abs(im - threshold))
 
     return ip[idx], im[idx]

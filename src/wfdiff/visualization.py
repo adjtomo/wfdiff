@@ -15,21 +15,44 @@ from future.builtins import *  # NOQA
 
 import matplotlib.pylab as plt
 
+from .utils import rightmost_threshold_crossing
+
 plt.style.use("ggplot")
 
 
-def plot_misfit_curves(items, logarithmic, component, pretty_misfit_name,
-                       filename):
+def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
+                       logarithmic, component, pretty_misfit_name, filename):
     plt.close()
+
+    crossing_periods = []
+    crossing_values = []
+
     for item in items:
         if logarithmic:
             plt.semilogy(item["periods"], item["misfit_values"])
         else:
             plt.plot(item["periods"], item["misfit_values"])
-        plt.title("%s misfit curves for component %s" % (
-            pretty_misfit_name, component))
-        plt.xlabel("Lowpass Period [s]")
-        plt.ylabel("%s" % pretty_misfit_name)
+
+        # Find the threshold.
+        point = rightmost_threshold_crossing(
+            item["periods"], item["misfit_values"], threshold,
+            threshold_is_upper_limit)
+        crossing_periods.append(point[0])
+        crossing_values.append(point[1])
+
+    plt.title("%s misfit curves for component %s" % (
+        pretty_misfit_name, component))
+    plt.xlabel("Lowpass Period [s]")
+    plt.ylabel("%s" % pretty_misfit_name)
+
+    x = items[0]["periods"][0] - 0.5, items[0]["periods"][-1] + 0.5
+
+    plt.hlines(threshold, x[0], x[1],
+               linestyle="--", color="0.5")
+    plt.scatter(crossing_periods, crossing_values, color="0.2", s=10,
+                zorder=5)
+    plt.xlim(*x)
+
     plt.savefig(filename)
 
 

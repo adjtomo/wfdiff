@@ -54,45 +54,32 @@ def l2_norm(tr1, tr2):
 
 def l1_norm(tr1, tr2):
     """
-    L1 norm between two traces.
+    Normalized L1 norm between two traces. Reference is the L1 norm of the
+    second trace.
     """
     return {
         "name": "l1_norm",
-        "pretty_name": "L1 Norm",
+        "pretty_name": "Normalized L1 Norm",
         "logarithmic_plot": False,
-        "value": np.abs(tr1.data - tr2.data).sum(),
+        "value": np.abs(tr1.data - tr2.data).sum() / np.sum(np.abs(tr2.data)),
         "minimizing_misfit": True
     }
 
 
 def cross_correlation(tr1, tr2):
     """
-    Normalize cross correlation between two traces.
-
-    Returns the maximum cross correlation coefficient and the time shift for
-    that coefficient in seconds.
+    Normalized cross correlation between two traces.
     """
     d = tr1.data
     s = tr2.data
     cc = np.correlate(d, s, mode="full")
-    # Time shift in seconds.
-    time_shift = (cc.argmax() - len(d) + 1) * tr2.stats.delta
     # Normalized cross correlation.
     max_cc_value = cc.max() / np.sqrt((s ** 2).sum() * (d ** 2).sum())
-    return [
-        {
-            "name": "cc_coefficient",
+    return {
+            "name": "cross_correlation",
             "pretty_name": "Cross Correlation Coefficient",
             "logarithmic_plot": False,
             "value": max_cc_value,
             # The larger the correlation, the better.
             "minimizing_misfit": False
-        },
-        {
-            "name": "cc_shift",
-            "pretty_name": "Cross Correlation Time Shift",
-            "logarithmic_plot": False,
-            "value": time_shift,
-            "minimizing_misfit": True
-        }
-    ]
+    }

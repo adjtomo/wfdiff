@@ -107,16 +107,26 @@ class Results(object):
             self.__misfit_measurements[misfit_type]["measurements"].values()])
 
     def filter(self, misfit, component):
-        return [
+        # Sort to gain some consistency.
+        return sorted([
             _i for _i in
             self.__misfit_measurements[misfit]["measurements"].values()
-            if _i["component"] == component]
+            if _i["component"] == component], key=lambda x: (
+            x["network"], x["station"], x["component"]))
 
-    def plot_misfits(self, output_directory):
+    def plot_misfits(self, thresholds, output_directory):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+
         for misfit in self.available_misfits:
             for component in self.get_available_components_for_misfit(misfit):
                 visualization.plot_misfit_curves(
                     items=self.filter(misfit, component),
+                    threshold=thresholds[misfit],
+                    threshold_is_upper_limit=self.__misfit_measurements[
+                        misfit]["minimizing_misfit"],
                     logarithmic = self.__misfit_measurements[misfit][
                         "misfit_logarithmic_plot"],
                     component=component,
@@ -127,7 +137,12 @@ class Results(object):
                         "%s_misfit_curves_component_%s.pdf" % (misfit,
                                                                component)))
 
-    def plot_maps(self, output_directory):
+    def plot_maps(self, thresholds, output_directory):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+
         for misfit in self.available_misfits:
             for component in self.get_available_components_for_misfit(misfit):
                 visualization.plot_misfit_map(
@@ -139,6 +154,13 @@ class Results(object):
                         output_directory,
                         "%s_misfit_map_component_%s.pdf" % (misfit,
                                                             component)))
+
+    def plot_all(self, thresholds, output_directory):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+        self.plot_misfits(thresholds, output_directory)
 
 
 class WaveformDataSet(object):
@@ -516,7 +538,6 @@ class WFDiff(object):
                     results.add_result(_j)
 
             results.dump(os.path.join(output_directory, "results.json"))
-            #results.plot_misfits(output_directory)
 
 
     def _find_waveform_files(self):

@@ -9,7 +9,7 @@ and the second one the high resolution one.
 
 All of them have to either return a dictionary or a list of dictionaries.
 Each dictionary is a separate misfit measurement and has to have the
-following four keys:
+following five keys:
 
 * ``"name"``: Internally used name. Usually the function name. Snake case
     please.
@@ -18,6 +18,9 @@ following four keys:
 * ``"value"``: Single float denoting the value of the misfit measurement.
 * ``"logarithmic_plot"``: Boolean flag determining if the values should be
     plotted with a logarithmic scale or not.
+* ``"minimizing_misfit"``: Boolean flag determining if a misfit is a
+    classical minimizing misfit, e.g. smaller values are better or not.
+    Cross correlations for examples are not, most others are.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
@@ -44,7 +47,8 @@ def l2_norm(tr1, tr2):
         "name": "l2_norm",
         "pretty_name": "Normalized L2 Norm",
         "value": np.sum((tr1.data - tr2.data) ** 2) / np.sum(tr2.data ** 2),
-        "logarithmic_plot": True
+        "logarithmic_plot": True,
+        "minimizing_misfit": True
     }
 
 
@@ -56,7 +60,8 @@ def l1_norm(tr1, tr2):
         "name": "l1_norm",
         "pretty_name": "L1 Norm",
         "logarithmic_plot": False,
-        "value": np.abs(tr1.data - tr2.data).sum()
+        "value": np.abs(tr1.data - tr2.data).sum(),
+        "minimizing_misfit": True
     }
 
 
@@ -79,12 +84,15 @@ def cross_correlation(tr1, tr2):
             "name": "cc_coefficient",
             "pretty_name": "Cross Correlation Coefficient",
             "logarithmic_plot": False,
-            "value": max_cc_value
+            "value": max_cc_value,
+            # The larger the correlation, the better.
+            "minimizing_misfit": False
         },
         {
             "name": "cc_shift",
             "pretty_name": "Cross Correlation Time Shift",
             "logarithmic_plot": False,
-            "value": time_shift
+            "value": time_shift,
+            "minimizing_misfit": True
         }
     ]

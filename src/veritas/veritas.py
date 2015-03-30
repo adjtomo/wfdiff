@@ -26,7 +26,7 @@ import matplotlib.pylab as plt
 from mpi4py import MPI
 import numpy as np
 
-from . import logger, misfits, processing, watermark
+from . import logger, misfits, processing, visualization, watermark
 from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
 plt.style.use("ggplot")
@@ -44,6 +44,11 @@ class Results(object):
 
     @staticmethod
     def load(filename):
+        """
+        Load class instance from a JSON file.
+
+        :param filename: Filename to read.
+        """
         with open(filename, "r") as fh:
             _results = json.load(fh)
         results = Results()
@@ -58,11 +63,12 @@ class Results(object):
                 "misfit_name": result["misfit_name"],
                 "misfit_pretty_name": result["misfit_pretty_name"],
                 "misfit_logarithmic_plot": result["misfit_logarithmic_plot"],
+                "minimizing_misfit": result["minimizing_misfit"],
                 "measurements": {}
             }
 
         self.__misfit_measurements[name]["measurements"][
-            "{network}.{station}{component}".format(**result)] = {
+            "{network}.{station}.{component}".format(**result)] = {
             "network": result["network"],
             "station": result["station"],
             "component": result["component"],
@@ -73,6 +79,12 @@ class Results(object):
         }
 
     def dump(self, filename):
+        """
+        Serialize the object to disc in form of a JSON file.
+
+        :param filename: The filename to store.
+        :type filename: str
+        """
         measurements = copy.deepcopy(self.__misfit_measurements)
         measurements["_watermark"] = watermark.get_watermark()
         with open(filename, "w") as fh:
@@ -80,28 +92,53 @@ class Results(object):
                       separators=(",", ": "))
 
     @property
-    def components(self):
+    def available_misfits(self):
+        """
+        Set of all available misfits.
+        """
+        return set(self.__misfit_measurements.keys())
+
+    def get_available_components_for_misfit(self, misfit_type):
         """
         Set of components that have results.
         """
-        return set([_i[2] for _i in self.__results.keys()])
+        return set([
+            _i["component"] for _i in
+            self.__misfit_measurements[misfit_type]["measurements"].values()])
 
-    def filter(self, component):
-        return [_i for _i in self.__results.values()
-                if _i["component"] == component]
+    def filter(self, misfit, component):
+        return [
+            _i for _i in
+            self.__misfit_measurements[misfit]["measurements"].values()
+            if _i["component"] == component]
 
     def plot_misfits(self, output_directory):
-        for component in self.components:
-            for result in self.filter(component):
-                plt.semilogy(result["periods"], result["misfit_values"])
-            plt.title("%s misfit curves for component %s" % (
-                self.misfit_type, component))
-            plt.xlabel("Lowpass Period [s]")
-            plt.ylabel("%s" % self.misfit_type)
-            filename = os.path.join(
-                output_directory, "%s_misfit_curves_component_%s.pdf" % (
-                    self.misfit_type.lower().replace(" ", "_"), component))
-            plt.savefig(filename)
+        for misfit in self.available_misfits:
+            for component in self.get_available_components_for_misfit(misfit):
+                visualization.plot_misfit_curves(
+                    items=self.filter(misfit, component),
+                    logarithmic = self.__misfit_measurements[misfit][
+                        "misfit_logarithmic_plot"],
+                    component=component,
+                    pretty_misfit_name= self.__misfit_measurements[misfit][
+                        "misfit_pretty_name"],
+                    filename= os.path.join(
+                        output_directory,
+                        "%s_misfit_curves_component_%s.pdf" % (misfit,
+                                                               component)))
+
+    def plot_maps(self, output_directory):
+        for misfit in self.available_misfits:
+            for component in self.get_available_components_for_misfit(misfit):
+                visualization.plot_misfit_map(
+                    items=self.filter(misfit, component),
+                    component=component,
+                    pretty_misfit_name= self.__misfit_measurements[misfit][
+                        "misfit_pretty_name"],
+                    filename= os.path.join(
+                        output_directory,
+                        "%s_misfit_map_component_%s.pdf" % (misfit,
+                                                            component)))
 
 
 class WaveformDataSet(object):
@@ -458,7 +495,8 @@ class WFDiff(object):
                     "misfit_values": [_i["value"] for _i in value],
                     "misfit_name": value[0]["name"],
                     "misfit_pretty_name": value[0]["pretty_name"],
-                    "misfit_logarithmic_plot": value[0]["logarithmic_plot"]
+                    "misfit_logarithmic_plot": value[0]["logarithmic_plot"],
+                    "minimizing_misfit": value[0]["minimizing_misfit"]
                 }
                 results.append(r)
 

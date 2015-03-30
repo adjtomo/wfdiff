@@ -7,7 +7,7 @@ python:
 
 env:
   global:
-    secure: "I7YRXirCGWcerGJi3NDEYvpPrZhSHmnByk7bIh7mcp4mtyQ8pNx8AfdvxH1ZkCpnXRJyN9gtJd9pomlbczdPgam/0TR9kpK7KQK8FQ5zy/GI5Y/WbKozzXWbpVDNxCaVKX0oFLGDUxyWy6FcKxDLrvyrV3N1dfaX9GoZmVJ6yUk="
+    secure: "H2OUtWjug6nutKAQ8CACT4WOWfSqJLIqdegCSxH+VFs+Ia6kbedJ1Q8BWaECtOCdSJ/9oQvLSDUBjFozRuY2V052/Xsi3XICtqPYDGgeBgyE6GvyDarjNud4tKcUra9YCxddPlQwYKpsxCj4Qa3m4HZet8RsTIuiNttwHepenco="
 
 before_install:
   - sudo apt-get install -qq pandoc

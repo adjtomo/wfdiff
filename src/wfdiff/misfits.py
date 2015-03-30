@@ -46,9 +46,8 @@ def l2_norm(tr1, tr2):
     return {
         "name": "l2_norm",
         "pretty_name": "Normalized L2 Norm",
-        "value": np.log10(np.sum((tr1.data - tr2.data) ** 2) / np.sum(
-            tr2.data ** 2)),
-        "logarithmic_plot": False,
+        "value": np.sum((tr1.data - tr2.data) ** 2) / np.sum(tr2.data ** 2),
+        "logarithmic_plot": True,
         "minimizing_misfit": True
     }
 
@@ -61,7 +60,7 @@ def l1_norm(tr1, tr2):
     return {
         "name": "l1_norm",
         "pretty_name": "Normalized L1 Norm",
-        "logarithmic_plot": False,
+        "logarithmic_plot": True,
         "value": np.abs(tr1.data - tr2.data).sum() / np.sum(np.abs(tr2.data)),
         "minimizing_misfit": True
     }

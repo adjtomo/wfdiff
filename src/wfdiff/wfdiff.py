@@ -456,6 +456,11 @@ class WFDiff(object):
         if COMM.rank == 0:
             os.makedirs(output_directory)
 
+            if save_debug_plots:
+                debug_folder = os.path.join(output_directory, "debug_plots")
+                if not os.path.exists(debug_folder):
+                    os.makedirs(debug_folder)
+
             jobs = [_i for _i in self.wf_dataset]
             total_length = len(jobs)
             # Collect all jobs on rank 0 and distribute.
@@ -498,12 +503,22 @@ class WFDiff(object):
             # Calculate each misfit for a range of periods.
             collected_misfits = defaultdict(list)
 
-            # import matplotlib.pylab as plt
-            # plt.figure()
-            # count = len(self.periods) + 1
-            # plt.subplot(count, 1, 1)
-            # plt.plot(tr_high.data, color="red")
-            # plt.plot(tr_low.data, color="blue")
+            if save_debug_plots:
+                plt.close()
+                plt.style.use("ggplot")
+                plt.figure(figsize=(10, len(self.periods)))
+                plt.subplot(len(self.periods) + 1, 1, 1)
+                plt.subplots_adjust(left=0.0, right=1.0, top=1.0,
+                                    bottom=0.0, wspace=0.0, hspace=0.0)
+                plt.plot(tr_high.data, color="red")
+                plt.plot(tr_low.data, color="blue")
+                plt.xticks([])
+                plt.yticks([])
+
+                ax = plt.gca()
+                ax.text(0.02, 0.95, "raw", transform=ax.transAxes,
+                        fontdict=dict(fontsize="small", ha='left', va='top'),
+                        bbox=dict(boxstyle="round", fc="w", alpha=0.8))
 
             for _i, period in enumerate(self.periods):
                 l_tr = tr_low.copy()
@@ -521,12 +536,25 @@ class WFDiff(object):
                     for mf in mfs:
                         collected_misfits[mf["name"]].append(mf)
 
-                # plt.subplot(count, 1, _i + 2)
-                # plt.plot(h_tr.data, color="red")
-                # plt.plot(l_tr.data, color="blue")
-                # plt.title("Period %.1f, misfit: %g" % (period, misfit))
+                if save_debug_plots:
+                    plt.subplot(len(self.periods) + 1, 1, _i + 2)
+                    plt.plot(h_tr.data, color="red")
+                    plt.plot(l_tr.data, color="blue")
+                    plt.xticks([])
+                    plt.yticks([])
+                    ax = plt.gca()
+                    ax.text(0.02, 0.95, "Lowpass period: %.1f" % period,
+                            transform=ax.transAxes,
+                            fontdict=dict(fontsize="small", ha='left',
+                                          va='top'),
+                            bbox=dict(boxstyle="round", fc="w", alpha=0.8))
 
-            # plt.show()
+            if save_debug_plots:
+                filename = os.path.join(
+                    debug_folder,
+                    "%s_%s_%s.pdf" % (job.network, job.station,
+                                      job.component))
+                plt.savefig(filename)
 
             # Now assemble a frequency dependent misfit measurement for each
             # final misfit type.

@@ -15,6 +15,7 @@ from future.builtins import *  # NOQA
 
 import numpy as np
 
+
 def rightmost_threshold_crossing(
         periods, misfit_values,
         threshold, threshold_is_upper_limit):

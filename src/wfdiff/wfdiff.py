@@ -152,12 +152,12 @@ class Results(object):
                 threshold=thresholds[misfit],
                 threshold_is_upper_limit=self.__misfit_measurements[
                     misfit]["minimizing_misfit"],
-                logarithmic = self.__misfit_measurements[misfit][
+                logarithmic=self.__misfit_measurements[misfit][
                     "misfit_logarithmic_plot"],
                 component=component,
-                pretty_misfit_name= self.__misfit_measurements[misfit][
+                pretty_misfit_name=self.__misfit_measurements[misfit][
                     "misfit_pretty_name"],
-                filename= os.path.join(
+                filename=os.path.join(
                     output_directory,
                     "%s_misfit_curves_component_%s.pdf" % (misfit,
                                                            component)))
@@ -187,9 +187,9 @@ class Results(object):
                 threshold_is_upper_limit=self.__misfit_measurements[
                     misfit]["minimizing_misfit"],
                 component=component,
-                pretty_misfit_name= self.__misfit_measurements[misfit][
+                pretty_misfit_name=self.__misfit_measurements[misfit][
                     "misfit_pretty_name"],
-                filename= os.path.join(
+                filename=os.path.join(
                     output_directory,
                     "%s_histogram_component_%s.pdf" % (misfit, component)))
 
@@ -218,9 +218,9 @@ class Results(object):
                 threshold_is_upper_limit=self.__misfit_measurements[
                     misfit]["minimizing_misfit"],
                 component=component,
-                pretty_misfit_name= self.__misfit_measurements[misfit][
+                pretty_misfit_name=self.__misfit_measurements[misfit][
                     "misfit_pretty_name"],
-                filename= os.path.join(
+                filename=os.path.join(
                     output_directory,
                     "%s_map_component_%s.pdf" % (misfit, component)))
 
@@ -465,7 +465,7 @@ class WFDiff(object):
             if len(wf_s) > len(avail_stations):
                 logger.info("%i stations are part of both datasets but no "
                             "station information exists for them." % (
-                    len(wf_s) - len(avail_stations)))
+                                len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
     def run(self, misfit_types, output_directory, save_debug_plots=False):
@@ -594,7 +594,6 @@ class WFDiff(object):
                                           va='top'),
                             bbox=dict(boxstyle="round", fc="w", alpha=0.8))
 
-
             if save_debug_plots:
                 filename = os.path.join(
                     debug_folder,
@@ -623,7 +622,7 @@ class WFDiff(object):
             if COMM.rank == 0:
                 logger.info(
                     "Approximately %i of %i channels have been processed." % (
-                    min((jobnum + 1) * MPI.COMM_WORLD.size, total_length),
+                        min((jobnum + 1) * MPI.COMM_WORLD.size, total_length),
                         total_length))
 
         # Gather and store results on disc.
@@ -641,7 +640,6 @@ class WFDiff(object):
 
         return results
 
-
     def _find_waveform_files(self):
         """
         Finds the waveform files for the low and high resolution seismograms.
@@ -658,7 +656,6 @@ class WFDiff(object):
             self.wf_dataset.add_waveform_to_dataset_high(
                 self.get_net_sta_comp_fct(os.path.basename(filename)),
                 filename)
-
 
         c_chan = self.wf_dataset.common_channels
         a_chan = self.wf_dataset.channels_only_in_high_set

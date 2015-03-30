@@ -80,12 +80,12 @@ def cross_correlation(tr1, tr2):
     # Normalized cross correlation.
     max_cc_value = cc.max() / np.sqrt((s ** 2).sum() * (d ** 2).sum())
     return {
-            "name": "cross_correlation",
-            "pretty_name": "Cross Correlation Coefficient",
-            "logarithmic_plot": False,
-            "value": max_cc_value,
-            # The larger the correlation, the better.
-            "minimizing_misfit": False
+        "name": "cross_correlation",
+        "pretty_name": "Cross Correlation Coefficient",
+        "logarithmic_plot": False,
+        "value": max_cc_value,
+        # The larger the correlation, the better.
+        "minimizing_misfit": False
     }
 
 

@@ -168,7 +168,7 @@ def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
         elif 2.0 < width < 5.0:
             stepsize = 1.0
             resolution = "h"
-        else :
+        else:
             stepsize = 0.5
             resolution = "h"
 

@@ -56,4 +56,3 @@ def read_specfem_ascii_waveform_file(filename, network, station, channel):
     tr.stats.starttime += time_array[0]
 
     return obspy.Stream(traces=[tr])
-

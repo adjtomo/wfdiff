@@ -10,7 +10,7 @@ env:
     secure: "H2OUtWjug6nutKAQ8CACT4WOWfSqJLIqdegCSxH+VFs+Ia6kbedJ1Q8BWaECtOCdSJ/9oQvLSDUBjFozRuY2V052/Xsi3XICtqPYDGgeBgyE6GvyDarjNud4tKcUra9YCxddPlQwYKpsxCj4Qa3m4HZet8RsTIuiNttwHepenco="
 
 before_install:
-  - sudo apt-get install -qq pandoc
+  - sudo apt-get install -qq pandoc mpich2
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
@@ -22,10 +22,10 @@ before_install:
   # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
   - sudo rm -rf /dev/shm
   - sudo ln -s /run/shm /dev/shm
-  - conda install -c obspy python=3.4 obspy --yes
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION pytest flake8 sphinx ipython-notebook mpi4py pandas future pygments jinja2
+  - conda install -c obspy python=$TRAVIS_PYTHON_VERSION obspy --yes
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION pytest flake8 sphinx ipython-notebook pandas future pygments jinja2
   - if [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then pip install --use-mirrors sphinx-readable-theme mistune runipy; fi
-  - pip install coveralls
+  - pip install coveralls mpi4py
 
 install:
   - pip install --no-deps -v -e .

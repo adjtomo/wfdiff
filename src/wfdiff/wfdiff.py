@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Main veritas interfaces.
+Main wfdiff interfaces.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015

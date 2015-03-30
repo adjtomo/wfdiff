@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-I/O Utilities for veritas.
+I/O Utilities for wfdiff.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015

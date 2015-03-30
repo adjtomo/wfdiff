@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Visualization functions for veritas.
+Visualization functions for wfdiff.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2014

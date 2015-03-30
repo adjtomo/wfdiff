@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-The only purpose of this file is to be able to run the veritas test suite with
+The only purpose of this file is to be able to run the wfdiff test suite with
 
-python -m veritas.tests
+python -m wfdiff.tests
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015

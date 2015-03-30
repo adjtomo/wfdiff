@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Veritas documentation build configuration file, created by
+# wfdiff documentation build configuration file, created by
 # sphinx-quickstart on Thu Nov  6 21:16:35 2014.
 #
 # This file is execfile()d with the current directory set to its
@@ -51,7 +51,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Veritas'
+project = u'wfdiff'
 copyright = u'2014, Lion Krischer and Carl Tape'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -187,7 +187,7 @@ html_show_sphinx = False
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Veritasdoc'
+htmlhelp_basename = 'wfdiffdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -207,7 +207,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'Veritas.tex', u'Veritas Documentation',
+  ('index', 'wfdiff.tex', u'wfdiff Documentation',
    u'Lion Krischer and Carl Tape', 'manual'),
 ]
 
@@ -237,7 +237,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'veritas', u'Veritas Documentation',
+    ('index', 'wfdiff', u'wfdiff Documentation',
      [u'Lion Krischer and Carp Tape'], 1)
 ]
 
@@ -251,8 +251,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'Veritas', u'Veritas Documentation',
-   u'Lion Krischer and Carl Tape', 'Veritas', 'One line description of project.',
+  ('index', 'wfdiff', u'wfdiff Documentation',
+   u'Lion Krischer and Carl Tape', 'wfdiff', 'One line description of project.',
    'Miscellaneous'),
 ]
 

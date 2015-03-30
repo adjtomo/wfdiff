@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Test suite for the veritas visualizations.
+Test suite for the wfdiff visualizations.
 
 Run with pytest.
 

@@ -15,9 +15,9 @@ with open(changelog, "rt") as fh:
     changelog = fh.read()
 
 long_description = """
-Source code: https://github.com/krischer/veritas
+Source code: https://github.com/krischer/wfdiff
 
-Documentation: http://krischer.github.io/veritas
+Documentation: http://krischer.github.io/wfdiff
 
 %s""".strip() % changelog
 
@@ -29,14 +29,14 @@ def read(*names, **kwargs):
 
 
 setup(
-    name="veritas",
+    name="wfdiff",
     version="0.0.0",
     license='GNU General Public License, Version 3 (GPLv3)',
-    description="Veritas",
+    description="wfdiff",
     long_description=long_description,
     author="Lion Krischer and Carl Tape",
     author_email="krischer@geophysik.uni-muenchen.de",
-    url="https://github.com/krischer/veritas",
+    url="https://github.com/krischer/wfdiff",
     packages=find_packages("src"),
     package_dir={"": "src"},
     py_modules=[os.path.splitext(os.path.basename(i))[0]
@@ -52,7 +52,6 @@ setup(
         "Operating System :: POSIX",
         "Operating System :: Microsoft :: Windows",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2.6",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.3",
@@ -64,7 +63,14 @@ setup(
         "seismology", "science", "numerical wave propagation"
     ],
     install_requires=[
-        "obspy", "flake8", "pytest"
+        "numpy>=1.8.0",
+        "pandas",
+        "future",
+        "matplotlib>=1.4.2",
+        "obspy>=0.10.1",
+        "mpi4py",
+        "flake8",
+        "pytest"
     ],
     extras_require={
         "docs": ["sphinx", "ipython", "runipy"]

@@ -165,15 +165,17 @@ class Results(object):
 
         for misfit in self.available_misfits:
             for component in self.get_available_components_for_misfit(misfit):
-                visualization.plot_misfit_map(
+                visualization.plot_map(
                     items=self.filter(misfit, component),
+                    threshold=thresholds[misfit],
+                    threshold_is_upper_limit=self.__misfit_measurements[
+                        misfit]["minimizing_misfit"],
                     component=component,
                     pretty_misfit_name= self.__misfit_measurements[misfit][
                         "misfit_pretty_name"],
                     filename= os.path.join(
                         output_directory,
-                        "%s_misfit_map_component_%s.pdf" % (misfit,
-                                                            component)))
+                        "%s_map_component_%s.pdf" % (misfit, component)))
 
     def plot_all(self, thresholds, output_directory):
         # Make sure all thresholds are available.
@@ -182,6 +184,7 @@ class Results(object):
                              "misfits: '%s'" % self.available_misfits)
         self.plot_misfits(thresholds, output_directory)
         self.plot_histograms(thresholds, output_directory)
+        self.plot_maps(thresholds, output_directory)
 
 
 class WaveformDataSet(object):
@@ -559,6 +562,8 @@ class WFDiff(object):
                     results.add_result(_j)
 
             results.dump(os.path.join(output_directory, "results.json"))
+
+        return results
 
 
     def _find_waveform_files(self):

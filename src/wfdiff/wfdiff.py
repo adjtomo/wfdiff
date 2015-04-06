@@ -20,6 +20,7 @@ import copy
 import glob
 import json
 import os
+import sys
 
 import obspy
 import matplotlib.pylab as plt
@@ -83,9 +84,9 @@ class Results(object):
 
         self.__misfit_measurements[name]["measurements"][
             "{network}.{station}.{component}".format(**result)] = {
-            "network": result["network"],
-            "station": result["station"],
-            "component": result["component"],
+            "network": str(result["network"]),
+            "station": str(result["station"]),
+            "component": str(result["component"]),
             "latitude": result["latitude"],
             "longitude": result["longitude"],
             "misfit_values": result["misfit_values"],
@@ -101,9 +102,15 @@ class Results(object):
         """
         measurements = copy.deepcopy(self.__misfit_measurements)
         measurements["_watermark"] = watermark.get_watermark()
-        with open(filename, "w") as fh:
+
+        if sys.version_info[0] < 3:
+            mode = "wb"
+        else:
+            mode = "wt"
+
+        with open(filename, mode) as fh:
             json.dump(measurements, fh, sort_keys=True, indent=4,
-                      separators=(",", ": "))
+                      separators=(u",", u": "))
 
     @property
     def available_misfits(self):

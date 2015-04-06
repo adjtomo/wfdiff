@@ -25,23 +25,25 @@ modules = ["numpy", "scipy", "matplotlib", "obspy", "lxml", "future", "mpi4py",
 
 
 def get_watermark():
+    # Unicode all the way for py2 & py3 compatibility. The future package
+    # overrides str() on Python 2.
     watermark = {
-        "python_implemenation": platform.python_implementation(),
-        "python_version": platform.python_version(),
-        "python_compiler": platform.python_compiler(),
-        "platform_system": platform.system(),
-        "platform_release": platform.release(),
-        "platform_version": platform.version(),
-        "platform_machine": platform.machine(),
-        "platform_processor": platform.processor(),
-        "platform_processor_count": cpu_count(),
-        "platform_architecture": platform.architecture()[0],
-        "platform_hostname": gethostname(),
-        "date": strftime('%d/%m/%Y'),
-        "time": strftime('%H:%M:%S'),
-        "timezone": strftime('%Z')}
+        "python_implemenation": str(platform.python_implementation()),
+        "python_version": str(platform.python_version()),
+        "python_compiler": str(platform.python_compiler()),
+        "platform_system": str(platform.system()),
+        "platform_release": str(platform.release()),
+        "platform_version": str(platform.version()),
+        "platform_machine": str(platform.machine()),
+        "platform_processor": str(platform.processor()),
+        "platform_processor_count": str(cpu_count()),
+        "platform_architecture": str(platform.architecture()[0]),
+        "platform_hostname": str(gethostname()),
+        "date": str(strftime('%d/%m/%Y')),
+        "time": str(strftime('%H:%M:%S')),
+        "timezone": str(strftime('%Z'))}
 
     watermark["module_versions"] = {
-        module: get_distribution(module).version for module in modules}
+        module: str(get_distribution(module).version) for module in modules}
 
     return watermark

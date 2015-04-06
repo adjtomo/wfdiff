@@ -2,9 +2,11 @@
 wfdiff
 ======
 
+
 .. warning::
 
     This package is work in progress and **NOT YET READY FOR PRODUCTIVE USE**.
+
 The source code for ``wfdiff`` lives on Github:
 https://github.com/krischer/wfdiff. If you encounter any problems with
 it please open an issue or submit a pull request.
@@ -57,6 +59,7 @@ and the remaining dependencies with
 
     $ conda install basemap pandas flake8 pytest nose
 
+
 .. note::
 
     Depending on your cluster, the ``mpi4py`` shipping with Anaconda might not work with the MPI on your machine. It is best to uninstall the ``mpi4py`` shipping with Anaconda:
@@ -73,6 +76,7 @@ and the remaining dependencies with
         $ pip install mpi4py
         
     This will cause ``mpi4py`` to be compiled with the MPI compiler on your system which should resolve any issues.
+
 Install wfdiff
 ~~~~~~~~~~~~~~
 

@@ -28,9 +28,9 @@ def get_net_sta_comp(filename):
 
 #--------------------------------------------------------------------------------
 # test data
-low_res_seismos="/home/vipul/REPOSITORIES/ADJOINT_TOMO/wfdiff/test_data/NGLL5/*semd"
-high_res_seismos="/home/vipul/REPOSITORIES/ADJOINT_TOMO/wfdiff/test_data/NGLL7/*semd"
-station_info="/home/vipul/REPOSITORIES/ADJOINT_TOMO/wfdiff/test_data/STATIONS"
+low_res_seismos="./test_data/NGLL5/*semd"
+high_res_seismos="./test_data/NGLL7/*semd"
+station_info="./test_data/STATIONS"
 trace_tags = {'NGLL5','NGLL7'}
 OUTPUT_DIRECTORY = "output_test"
 
@@ -64,6 +64,6 @@ results = c.run(
     save_debug_plots=True)
 
 # This produces all kinds of plots for all components and misfits it encounters.
-#results.plot_all(
-#    output_directory=OUTPUT_DIRECTORY,
-#    thresholds=THRESHOLDS)
+results.plot_all(
+    output_directory=OUTPUT_DIRECTORY,
+    thresholds=THRESHOLDS)

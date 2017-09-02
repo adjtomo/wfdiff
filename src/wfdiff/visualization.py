@@ -116,7 +116,7 @@ def plot_map(items, threshold, threshold_is_upper_limit,
                      vmax=period_range[-1], cmap=cm, alpha=0.8, zorder=10)
     # add station label
     for stnm, xi, yi in zip(station_array, x, y):
-        plt.text(xi, yi, stnm)
+        plt.text(xi, yi, stnm,fontsize=6)
 
     cbar = m.colorbar(data, location="right", pad="15%")
     cbar.set_label("Minimum Resolvable Period [s]")

@@ -477,7 +477,7 @@ class WFDiff(object):
                                 len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_types, output_directory, trace_tags, save_debug_plots=False):
+    def run(self, misfit_types, output_directory, trace_tags={'low res','high res'}, save_debug_plots=False):
         misfit_functions = {}
         # Check if all the misfit types also have corresponding functions.
         for m_type in misfit_types:
@@ -555,10 +555,15 @@ class WFDiff(object):
                 plt.subplot(len(self.periods) + 1, 1, 1)
                 plt.subplots_adjust(left=0.0, right=1.0, top=1.0,
                                     bottom=0.0, wspace=0.0, hspace=0.0)
-                plt.plot(tr_high.data, color="red")
-                plt.plot(tr_low.data, color="blue")
-                plt.legend(trace_tags, fontsize=8, loc=3)
-                plt.xticks()
+                plt.plot(tr_high.data, color="red", label=trace_tags[1])
+                plt.plot(tr_low.data, color="blue", label=trace_tags[0])
+                plt.legend(fontsize=8, loc=3)
+                # x-axis tick-marks and labels
+                xtick_len = 20
+                locs = np.arange(self.starttime/tr_low.stats.delta,
+                                   self.endtime/tr_low.stats.delta + 1, xtick_len/tr_low.stats.delta)
+                labels = map(str, locs*tr_low.stats.delta)
+                plt.xticks(locs)
                 plt.yticks([])
 
                 ax = plt.gca()
@@ -568,7 +573,7 @@ class WFDiff(object):
                 ax.text(0.02, 0.65, "raw", transform=ax.transAxes,
                         fontdict=dict(fontsize="small", ha='left', va='top'),
                         bbox=dict(boxstyle="round", fc="w", alpha=0.8))
-
+            
             for _i, period in enumerate(self.periods):
                 l_tr = tr_low.copy()
                 h_tr = tr_high.copy()
@@ -592,13 +597,12 @@ class WFDiff(object):
                     plt.subplot(len(self.periods) + 1, 1, _i + 2)
                     plt.plot(h_tr.data, color="red")
                     plt.plot(l_tr.data, color="blue")
-                    plt.xticks()
-                    # time-axis tick-marks and labels
-                    if _i ==0:
-                        locs, labels = plt.xticks()
-                        labels = map(str, locs*tr_low.stats.delta)
+                    # x-axis label
+                    if _i ==1:
                         plt.xticks(locs, labels)
                         plt.tick_params(labelbottom='off',labeltop='on')
+                    else:
+                        plt.xticks(locs)
                     plt.yticks([])
                     ax = plt.gca()
                     ax.text(0.02, 0.95, "Lowpass period: %.1f" % period,

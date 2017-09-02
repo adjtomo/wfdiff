@@ -95,12 +95,14 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     resolvable_periods = []
     period_range = items[0]["periods"]
 
+    station_array = []
     for item in items:
         # Find the threshold.
         point = rightmost_threshold_crossing(
             item["periods"], item["misfit_values"], threshold,
             threshold_is_upper_limit)
         resolvable_periods.append(point[0])
+        station_array.append(item["station"])
 
     resolvable_periods = np.array(resolvable_periods)
 
@@ -112,6 +114,10 @@ def plot_map(items, threshold, threshold_is_upper_limit,
 
     data = m.scatter(x, y, c=resolvable_periods, s=50, vmin=period_range[0],
                      vmax=period_range[-1], cmap=cm, alpha=0.8, zorder=10)
+    # add station label
+    for stnm, xi, yi in zip(station_array, x, y):
+        plt.text(xi, yi, stnm)
+
     cbar = m.colorbar(data, location="right", pad="15%")
     cbar.set_label("Minimum Resolvable Period [s]")
 
@@ -148,6 +154,10 @@ def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
         # Calculate approximate width and height in meters.
         width = longitudinal_extent
         height = latitudinal_extent
+        if width == 0:
+            width=1
+        if height == 0:
+            height=1
 
         # Force a 4 : 3 ratio
         x = 4.0 / 3.0 * height / width

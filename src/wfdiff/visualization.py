@@ -17,6 +17,7 @@ import matplotlib.cm
 import matplotlib.pylab as plt
 from mpl_toolkits.basemap import Basemap
 import numpy as np
+from obspy.geodetics import base
 
 from .utils import rightmost_threshold_crossing
 
@@ -107,8 +108,10 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     resolvable_periods = np.array(resolvable_periods)
 
     plt.close()
-    m = get_basemap(longitudes.ptp(), latitudes.ptp(), longitudes.mean(),
-                    latitudes.mean())
+    lat_mean = (latitudes.min() + latitudes.max())/2
+    lon_mean = (longitudes.min() + longitudes.max())/2
+    m = get_basemap(longitudes.ptp(), latitudes.ptp(), lon_mean,
+                    lat_mean)
 
     x, y = m(longitudes, latitudes)
 
@@ -151,42 +154,40 @@ def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
     # are useful for interpreting features and this particular one also
     # does not distort features a lot on regional scales.
     else:
-        # Calculate approximate width and height in meters.
-        width = longitudinal_extent
-        height = latitudinal_extent
-        if width == 0:
-            width=1
-        if height == 0:
-            height=1
-
-        # Force a 4 : 3 ratio
-        x = 4.0 / 3.0 * height / width
-        if x < 1:
-            height /= x
-        elif x > 1:
-            width *= x
-
-        if width > 50.0:
+        # Calculate map region 
+        lat_min = center_latitude - (latitudinal_extent / 2.0)
+        lat_max = center_latitude + (latitudinal_extent / 2.0)
+        lon_min = center_longitude - (longitudinal_extent / 2.0)
+        lon_max = center_longitude + (longitudinal_extent / 2.0)
+      
+        # Try to pick suitable tick-marks increment and resolution
+        # on the basis of size of map region
+        if longitudinal_extent > 50.0:
             stepsize = 10.0
             resolution = "i"
-        elif 20.0 < width <= 50.0:
+        elif 20.0 < longitudinal_extent <= 50.0:
             stepsize = 5.0
             resolution = "i"
-        elif 5.0 < width <= 20.0:
+        elif 5.0 < longitudinal_extent <= 20.0:
             stepsize = 2.0
-            resolution = "h"
-        elif 2.0 < width < 5.0:
+            resolution = "i"
+        elif 2.0 < longitudinal_extent < 5.0:
             stepsize = 1.0
             resolution = "h"
         else:
             stepsize = 0.5
             resolution = "h"
 
-        width *= 110000 * 1.1
-        height *= 110000 * 1.3
-
+        # Change map dimensions from degree to meters
+        width, _, _  = base.gps2dist_azimuth(center_latitude, lon_min, center_latitude, lon_max) 
+        height, _, _ = base.gps2dist_azimuth(lat_min, center_longitude, lat_max, center_longitude) 
+        # add little extra margin around the map
+        map_margin = 75000
+        width += map_margin
+        height += map_margin
+       
         m = Basemap(projection='laea', resolution=resolution, width=width,
-                    height=height, lat_0=center_latitude,
+                    height=height, lat_ts=center_latitude, lat_0=center_latitude,
                     lon_0=center_longitude, ax=ax)
 
     _plot_features(m, stepsize)

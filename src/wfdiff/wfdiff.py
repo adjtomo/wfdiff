@@ -477,7 +477,7 @@ class WFDiff(object):
                                 len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_types, output_directory, trace_tags={'low res','high res'}, save_debug_plots=False, outformat='ps'):
+    def run(self, misfit_types, output_directory, trace_tags=['low res','high res'], save_debug_plots=False, outformat='ps'):
         misfit_functions = {}
         # Check if all the misfit types also have corresponding functions.
         for m_type in misfit_types:

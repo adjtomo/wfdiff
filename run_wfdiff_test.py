@@ -31,8 +31,9 @@ def get_net_sta_comp(filename):
 low_res_seismos="./test_data/NGLL5/*semd"
 high_res_seismos="./test_data/NGLL7/*semd"
 station_info="./test_data/STATIONS"
-trace_tags = {'NGLL5','NGLL7'}
+trace_tags = ['NGLL5','NGLL7']
 OUTPUT_DIRECTORY = "output_test"
+outformat = 'pdf' # or ps, eps etc.
 
 #--------------------------------------------------------------------------------
 
@@ -61,9 +62,11 @@ results = c.run(
     # Setting this to True will create A LOT of debug plots which are very useful
     # to tune the algorithm to the problem at hand. For production runs set this to
     # False.
-    save_debug_plots=True)
+    save_debug_plots=True,
+    outformat=outformat)
 
 # This produces all kinds of plots for all components and misfits it encounters.
 results.plot_all(
     output_directory=OUTPUT_DIRECTORY,
-    thresholds=THRESHOLDS)
+    thresholds=THRESHOLDS,
+    outformat=outformat)

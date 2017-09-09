@@ -30,7 +30,7 @@ from mpi4py import MPI
 import numpy as np
 
 from . import logger, misfits, processing, visualization, watermark
-from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
+from .specfem_helper import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
 plt.style.use("ggplot")
 

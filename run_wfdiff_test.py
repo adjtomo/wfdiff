@@ -1,5 +1,5 @@
 # To run this script
-# mpirun -n 8 python run_wfdiff_alaska.py
+# mpirun -n 8 python run_wfdiff_test.py
 
 from wfdiff.wfdiff import WFDiff
 
@@ -17,6 +17,7 @@ THRESHOLDS = {
     #"envelope_misfit": 0.1}
 
 
+# XXX : Move this specfem_util.py
 # SPECFEM encoded information in the filenames and the way this
 # is done differs depending on the SPECFEM version. This function
 # will be used to extract network id, station id, and the component
@@ -27,13 +28,41 @@ def get_net_sta_comp(filename):
     return net, sta, chan[-1]
 
 #--------------------------------------------------------------------------------
-# test data
-low_res_seismos="./test_data/NGLL5/*semd"
-high_res_seismos="./test_data/NGLL7/*semd"
-station_info="./test_data/STATIONS"
-trace_tags = ['NGLL5','NGLL7']
-OUTPUT_DIRECTORY = "output_test"
-outformat = 'pdf' # or ps, eps etc.
+# Run example
+
+iex = 1
+
+if iex == 1:
+    # test data (using ENZ components)
+    low_res_seismos="./test_data/NGLL5/*semd"
+    high_res_seismos="./test_data/NGLL7/*semd"
+    station_info="./test_data/STATIONS"
+    trace_tags = ['NGLL5','NGLL7']
+    is_specfem_ascii = True
+    OUTPUT_DIRECTORY = "output_test"
+    outformat = 'pdf' # or ps, eps etc.
+
+elif iex == 2: 
+    # Test using sac data (using ENZ components) - Same as the Example 1
+    # Run specfem_util_test.py first to create rotate SAC file for NGLL5 and NGLL7 case
+    # test (using ENZ components) - Same as the Example 1
+    low_res_seismos="./20140831030657110_NGLL5_ENZ/*sac"
+    high_res_seismos="./20140831030657110_NGLL7_ENZ/*sac"
+    trace_tags = ['NGLL5-ENZ','NGLL7-ENZ']
+    is_specfem_ascii = False
+    OUTPUT_DIRECTORY = "output_test"
+    outformat = 'pdf' # or ps, eps etc.
+
+elif iex == 3:
+    # Test using sac data (using RTZ components)
+    # Run specfem_util_test.py first to create rotate SAC file for NGLL5 and NGLL7 case
+    low_res_seismos="./20140831030657110_NGLL5_RTZ/*sac"
+    high_res_seismos="./20140831030657110_NGLL7_RTZ/*sac"
+    station_info="./test_data/STATIONS"
+    trace_tags = ['NGLL5-RTZ','NGLL7-RTZ']
+    is_specfem_ascii = False
+    OUTPUT_DIRECTORY = "output_test"
+    outformat = 'pdf' # or ps, eps etc.
 
 #--------------------------------------------------------------------------------
 
@@ -49,7 +78,7 @@ c = WFDiff(
     get_net_sta_comp_fct=get_net_sta_comp,
     # Set to True if waveform ASCII files are used. All other fileformat
     # should otherwise work just fine.
-    is_specfem_ascii=True,
+    is_specfem_ascii=is_specfem_ascii,
     # Data window to take into account in seconds since the first sample.
     starttime=0, endtime=100)
 
@@ -66,7 +95,7 @@ results = c.run(
     outformat=outformat)
 
 # This produces all kinds of plots for all components and misfits it encounters.
-results.plot_all(
-    output_directory=OUTPUT_DIRECTORY,
-    thresholds=THRESHOLDS,
-    outformat=outformat)
+#results.plot_all(
+#    output_directory=OUTPUT_DIRECTORY,
+#    thresholds=THRESHOLDS,
+#    outformat=outformat)

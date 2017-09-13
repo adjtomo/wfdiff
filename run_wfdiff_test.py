@@ -9,12 +9,13 @@ from wfdiff.wfdiff import WFDiff
 # Choose which misfits you want and the threshold values.
 THRESHOLDS = {
     "rms": 0.25,
-    "l1_norm": 0.3}
+    #"l1_norm": 0.3,
     # A couple more misfits are available.
     # These currently take a long time to calculate.
     #"cross_correlation": 0.9,
     #"phase_misfit": 0.1,
-    #"envelope_misfit": 0.1}
+    #"envelope_misfit": 0.1
+    }
 
 
 # XXX : Move this specfem_util.py
@@ -37,6 +38,7 @@ if iex == 1:
     low_res_seismos="./test_data/NGLL5/*semd"
     high_res_seismos="./test_data/NGLL7/*semd"
     station_info="./test_data/STATIONS"
+    cmtsolution_file='./test_data/CMTSOLUTION'
     trace_tags = ['NGLL5','NGLL7']
     is_specfem_ascii = True
     OUTPUT_DIRECTORY = "output_test"
@@ -95,7 +97,8 @@ results = c.run(
     outformat=outformat)
 
 # This produces all kinds of plots for all components and misfits it encounters.
-#results.plot_all(
-#    output_directory=OUTPUT_DIRECTORY,
-#    thresholds=THRESHOLDS,
-#    outformat=outformat)
+results.plot_all(
+    output_directory=OUTPUT_DIRECTORY,
+    thresholds=THRESHOLDS,
+    cmtsolution_file=cmtsolution_file,
+    outformat=outformat)

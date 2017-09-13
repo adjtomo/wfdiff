@@ -18,6 +18,7 @@ import matplotlib.pylab as plt
 from mpl_toolkits.basemap import Basemap
 import numpy as np
 from obspy.geodetics import base
+from obspy.imaging.beachball import beach
 
 from .utils import rightmost_threshold_crossing
 
@@ -86,7 +87,7 @@ def plot_histogram(items, threshold, threshold_is_upper_limit,
 
 
 def plot_map(items, threshold, threshold_is_upper_limit,
-             component, pretty_misfit_name, filename):
+             component, pretty_misfit_name, filename, ev=None):
     # Choose red to green colormap.
     cm = matplotlib.cm.RdYlGn_r
 
@@ -103,15 +104,17 @@ def plot_map(items, threshold, threshold_is_upper_limit,
             item["periods"], item["misfit_values"], threshold,
             threshold_is_upper_limit)
         resolvable_periods.append(point[0])
-        station_array.append(item["station"])
+        station_array.append(item["network"] + '_' + item["station"])
 
     resolvable_periods = np.array(resolvable_periods)
 
     plt.close()
-    lat_mean = (latitudes.min() + latitudes.max())/2
-    lon_mean = (longitudes.min() + longitudes.max())/2
-    m = get_basemap(longitudes.ptp(), latitudes.ptp(), lon_mean,
-                    lat_mean)
+    lat_plot = np.append(latitudes, ev.origins[0].latitude)
+    lon_plot = np.append(longitudes, ev.origins[0].longitude)
+    lat_mean = (lat_plot.min() + lat_plot.max())/2
+    lon_mean = (lon_plot.min() + lon_plot.max())/2
+    m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
+                    lat_mean) 
 
     x, y = m(longitudes, latitudes)
 
@@ -120,6 +123,16 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     # add station label
     for stnm, xi, yi in zip(station_array, x, y):
         plt.text(xi, yi, stnm,fontsize=6)
+
+    ax = plt.gca()
+
+    # plot beachball
+    tensor  = ev.focal_mechanisms[0].tensor
+    ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
+             tensor.m_rt, tensor.m_rp, tensor.m_tp]
+    x, y = m(ev.origins[0].longitude, ev.origins[0].latitude)
+    b = beach(ev_mt, xy=(x, y), width=200, linewidth=1, alpha=0.85)
+    ax.add_collection(b)
 
     cbar = m.colorbar(data, location="right", pad="15%")
     cbar.set_label("Minimum Resolvable Period [s]")

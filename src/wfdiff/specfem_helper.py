@@ -21,7 +21,6 @@ from obspy.core.event import Event, Origin, Magnitude, FocalMechanism, MomentTen
 import pandas
 import glob
 import os
-import wfdiff.wfdiff
 
 def read_specfem_cmtsolution_file(filename):
     """

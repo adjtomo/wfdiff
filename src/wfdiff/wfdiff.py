@@ -30,7 +30,7 @@ from mpi4py import MPI
 import numpy as np
 
 from . import logger, misfits, processing, visualization, watermark
-from .specfem_helper import read_specfem_stations_file, read_specfem_ascii_waveform_file
+from .specfem_helper import read_specfem_stations_file, read_specfem_ascii_waveform_file, read_specfem_cmtsolution_file
 
 plt.style.use("ggplot")
 
@@ -137,7 +137,7 @@ class Results(object):
             if _i["component"] == component], key=lambda x: (
             x["network"], x["station"], x["component"]))
 
-    def plot_misfits(self, thresholds, output_directory, outformat = 'ps'):
+    def plot_misfits(self, thresholds, output_directory, outformat):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -171,7 +171,7 @@ class Results(object):
                     "%s_misfit_curves_component_%s.%s" % (misfit,
                                                            component, outformat)))
 
-    def plot_histograms(self, thresholds, output_directory, outformat = 'ps'):
+    def plot_histograms(self, thresholds, output_directory, outformat):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -202,7 +202,7 @@ class Results(object):
                     output_directory,
                     "%s_histogram_component_%s.%s" % (misfit, component, outformat)))
 
-    def plot_maps(self, thresholds, output_directory, outformat = 'ps'):
+    def plot_maps(self, thresholds, output_directory, ev, outformat):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -231,16 +231,26 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_map_component_%s.%s" % (misfit, component, outformat)))
+                    "%s_map_component_%s.%s" % (misfit, component, outformat)),
+                ev=ev)
 
-    def plot_all(self, thresholds, output_directory,outformat='ps'):
+    def plot_all(self, thresholds, output_directory, cmtsolution_file = None, 
+                 outformat='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
                              "misfits: '%s'" % self.available_misfits)
-        self.plot_misfits(thresholds, output_directory, outformat)
-        self.plot_histograms(thresholds, output_directory, outformat)
-        self.plot_maps(thresholds, output_directory, outformat)
+
+        # Read CMTSOLUTION file if available
+        if cmtsolution_file:
+            ev = read_specfem_cmtsolution_file(cmtsolution_file)
+        else:
+            ev = None
+
+        # Plot results
+        self.plot_misfits(thresholds, output_directory, outformat = outformat)
+        self.plot_histograms(thresholds, output_directory, outformat = outformat)
+        self.plot_maps(thresholds, output_directory, ev = ev, outformat = outformat)
 
 
 class WaveformDataSet(object):
@@ -477,7 +487,7 @@ class WFDiff(object):
                                 len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_types, output_directory, trace_tags=['low res','high res'], save_debug_plots=False, outformat='ps'):
+    def run(self, misfit_types, output_directory, trace_tags=['low res','high res'], save_debug_plots=False, outformat='pdf'):
         misfit_functions = {}
         # Check if all the misfit types also have corresponding functions.
         for m_type in misfit_types:

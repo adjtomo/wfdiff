@@ -21,6 +21,7 @@ from obspy.geodetics import base
 from obspy.imaging.beachball import beach
 
 from .utils import rightmost_threshold_crossing
+#from adjustText import adjust_text # [unoffical] To prevent overlapping station names on the map 
 
 plt.style.use("ggplot")
 
@@ -121,8 +122,13 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     data = m.scatter(x, y, c=resolvable_periods, s=50, vmin=period_range[0],
                      vmax=period_range[-1], cmap=cm, alpha=0.8, zorder=10)
     # add station label
+    texts = []
+    
     for stnm, xi, yi in zip(station_array, x, y):
-        plt.text(xi, yi, stnm,fontsize=6)
+    #    plt.text(xi, yi, stnm,fontsize=6)
+        texts.append(plt.text(xi, yi, stnm,fontsize=6)) 
+    #adjust_text(texts, force_points=0.2, force_text=0.2, expand_points=(1,1), expand_text=(1,1),
+    #            arrowprops=dict(arrowstyle="<-", color='black', lw=0.5)) # require adjust_Text module
 
     ax = plt.gca()
 
@@ -131,7 +137,8 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
              tensor.m_rt, tensor.m_rp, tensor.m_tp]
     x, y = m(ev.origins[0].longitude, ev.origins[0].latitude)
-    b = beach(ev_mt, xy=(x, y), width=200, linewidth=1, alpha=0.85)
+    b = beach(ev_mt, xy=(x, y), width=int(4000*ev.magnitudes[0].mag), 
+              linewidth=1)
     ax.add_collection(b)
 
     cbar = m.colorbar(data, location="right", pad="15%")

@@ -21,7 +21,7 @@ from obspy.geodetics import base
 from obspy.imaging.beachball import beach
 
 from .utils import rightmost_threshold_crossing
-#from adjustText import adjust_text # [unoffical] To prevent overlapping station names on the map 
+from adjustText import adjust_text # [unoffical] To prevent overlapping station names on the map 
 
 plt.style.use("ggplot")
 
@@ -32,12 +32,14 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
 
     crossing_periods = []
     crossing_values = []
-
+    
+    misfit_all = []
     for item in items:
         if logarithmic:
             plt.semilogy(item["periods"], item["misfit_values"])
         else:
-            plt.plot(item["periods"], item["misfit_values"])
+            plt.plot(item["periods"], item["misfit_values"], color="blue", 
+                     alpha=0.15, lw = 3)
 
         # Find the threshold.
         point = rightmost_threshold_crossing(
@@ -45,6 +47,21 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
             threshold_is_upper_limit)
         crossing_periods.append(point[0])
         crossing_values.append(point[1])
+
+        misfit_all.append(item['misfit_values'])
+
+    # compute mean and median of misfit for all stations at each filter period
+    misfit_all= np.asarray(misfit_all)
+    misfit_mean = misfit_all.mean(axis=0)
+    misfit_std = misfit_all.std(axis=0)
+    misfit_median = np.median(misfit_all, axis=0)
+ 
+    plt.plot(np.asarray(items[0]["periods"]), misfit_mean, color="red", 
+             lw = 2, label='mean')
+    plt.errorbar(np.asarray(items[0]["periods"]), misfit_mean, misfit_std,
+             lw = 2, zorder=3)
+    plt.plot(np.asarray(items[0]["periods"]), misfit_median, color="Chartreuse", 
+             lw = 2, label='median', linestyle="--")
 
     plt.title("%s misfit curves for component %s" % (
         pretty_misfit_name, component))
@@ -55,8 +72,8 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
 
     plt.hlines(threshold, x[0], x[1],
                linestyle="--", color="0.5")
-    plt.scatter(crossing_periods, crossing_values, color="0.2", s=10,
-                zorder=5)
+    plt.scatter(crossing_periods, crossing_values, color="orange", s=10,
+                zorder=5, alpha=0.3)
     plt.xlim(*x)
 
     plt.savefig(filename)
@@ -119,17 +136,16 @@ def plot_map(items, threshold, threshold_is_upper_limit,
 
     x, y = m(longitudes, latitudes)
 
-    data = m.scatter(x, y, c=resolvable_periods, s=50, vmin=period_range[0],
-                     vmax=period_range[-1], cmap=cm, alpha=0.8, zorder=10)
+    data = m.scatter(x, y, c=resolvable_periods, s=30, vmin=period_range[0],
+                     vmax=period_range[-1], cmap=cm, alpha=0.9, zorder=10)
     # add station label
     texts = []
     
     for stnm, xi, yi in zip(station_array, x, y):
-    #    plt.text(xi, yi, stnm,fontsize=6)
-        texts.append(plt.text(xi, yi, stnm,fontsize=6)) 
-    #adjust_text(texts, force_points=0.2, force_text=0.2, expand_points=(1,1), expand_text=(1,1),
-    #            arrowprops=dict(arrowstyle="<-", color='black', lw=0.5)) # require adjust_Text module
-
+        texts.append(plt.text(xi, yi, stnm,fontsize=5)) 
+    adjust_text(texts, force_points=1, force_text=1, expand_points=(1,1), 
+                expand_text=(1,1), arrowprops=dict(arrowstyle="<-", color='black', 
+                                                   alpha=0.5, lw=0.5)) # require adjust_Text module
     ax = plt.gca()
 
     # plot beachball
@@ -202,7 +218,7 @@ def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
         width, _, _  = base.gps2dist_azimuth(center_latitude, lon_min, center_latitude, lon_max) 
         height, _, _ = base.gps2dist_azimuth(lat_min, center_longitude, lat_max, center_longitude) 
         # add little extra margin around the map
-        map_margin = 75000
+        map_margin = 100000
         width += map_margin
         height += map_margin
        

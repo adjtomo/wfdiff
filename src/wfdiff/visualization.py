@@ -21,7 +21,7 @@ from obspy.geodetics import base
 from obspy.imaging.beachball import beach
 
 from .utils import rightmost_threshold_crossing
-from adjustText import adjust_text # [unoffical] To prevent overlapping station names on the map 
+#from adjustText import adjust_text # [unoffical] To prevent overlapping station names on the map 
 
 plt.style.use("ggplot")
 
@@ -58,8 +58,9 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
  
     plt.plot(np.asarray(items[0]["periods"]), misfit_mean, color="red", 
              lw = 2, label='mean')
-    plt.errorbar(np.asarray(items[0]["periods"]), misfit_mean, misfit_std,
-             lw = 2, zorder=3)
+    # Standard deviation doesn't make sense for a non-normal distribution
+    #plt.errorbar(np.asarray(items[0]["periods"]), misfit_mean, misfit_std,
+    #         lw = 2, zorder=3)
     plt.plot(np.asarray(items[0]["periods"]), misfit_median, color="Chartreuse", 
              lw = 2, label='median', linestyle="--")
 
@@ -78,6 +79,28 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
 
     plt.savefig(filename)
 
+    # Plot multiple histograms
+    # Histograms of misfit distribution for all stations at each filter period
+    # XXX Make this a separate function
+
+    plt.close()
+
+    fname = 'output_NGLL_test_cook_basin3_vsmin_1000_ismooth1/' + 'hist_' + items[0]["component"] + '.pdf'
+
+    nrows = 4
+    ncols = 3
+    bins_range = (misfit_all.min(), misfit_all.max())
+
+    fig = plt.figure(figsize=(3*ncols, 3*nrows))
+
+    for i in range(len(items[0]["periods"])):
+        ax = fig.add_subplot(nrows, ncols, i+1)
+        #ax=plt.gca()
+        ax.hist(misfit_all[:,i], range=bins_range, bins=50)
+        ax.set_title('t > ' + str(items[0]["periods"][i]) + ' s',fontsize=10,alpha=0.1)
+        ax.set_ylim([0, 70])
+
+    fig.savefig(fname)
 
 def plot_histogram(items, threshold, threshold_is_upper_limit,
                    component, pretty_misfit_name, filename):
@@ -143,9 +166,9 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     
     for stnm, xi, yi in zip(station_array, x, y):
         texts.append(plt.text(xi, yi, stnm,fontsize=5)) 
-    adjust_text(texts, force_points=1, force_text=1, expand_points=(1,1), 
-                expand_text=(1,1), arrowprops=dict(arrowstyle="<-", color='black', 
-                                                   alpha=0.5, lw=0.5)) # require adjust_Text module
+    #adjust_text(texts, force_points=1, force_text=1, expand_points=(1,1), 
+    #            expand_text=(1,1), arrowprops=dict(arrowstyle="<-", color='black', 
+    #                                               alpha=0.5, lw=0.5)) # require adjust_Text module
     ax = plt.gca()
 
     # plot beachball

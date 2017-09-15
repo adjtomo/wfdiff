@@ -168,8 +168,38 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_misfit_curves_component_%s.%s" % (misfit,
+                    "%s_misfit_curves_%s.%s" % (misfit,
                                                            component, outformat)))
+
+    def plot_misfits_hist(self, thresholds, output_directory, outformat):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+
+        if COMM.rank == 0:
+            jobs = []
+            for misfit in self.available_misfits:
+                for component in \
+                        self.get_available_components_for_misfit(misfit):
+                    jobs.append((misfit, component))
+            jobs = split(jobs, COMM.size)
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+
+        for misfit, component in jobs:
+            visualization.plot_misfit_hist(
+                items=self.filter(misfit, component),
+                component=component,
+                pretty_misfit_name=self.__misfit_measurements[misfit][
+                    "misfit_pretty_name"],
+                filename=os.path.join(
+                    output_directory,
+                    "%s_misfit_hist_%s.%s" % (misfit,
+                                                           component, outformat)))
+
 
     def plot_histograms(self, thresholds, output_directory, outformat):
         # Make sure all thresholds are available.
@@ -200,7 +230,7 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_histogram_component_%s.%s" % (misfit, component, outformat)))
+                    "%s_histogram_%s.%s" % (misfit, component, outformat)))
 
     def plot_maps(self, thresholds, output_directory, ev, outformat):
         # Make sure all thresholds are available.
@@ -231,7 +261,7 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_map_component_%s.%s" % (misfit, component, outformat)),
+                    "%s_map_%s.%s" % (misfit, component, outformat)),
                 ev=ev)
 
     def plot_all(self, thresholds, output_directory, cmtsolution_file = None, 
@@ -249,6 +279,7 @@ class Results(object):
 
         # Plot results
         self.plot_misfits(thresholds, output_directory, outformat = outformat)
+        self.plot_misfits_hist(thresholds, output_directory, outformat = outformat)
         self.plot_histograms(thresholds, output_directory, outformat = outformat)
         self.plot_maps(thresholds, output_directory, ev = ev, outformat = outformat)
 

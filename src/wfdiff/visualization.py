@@ -79,16 +79,19 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
 
     plt.savefig(filename)
 
+def plot_misfit_hist(items, component, pretty_misfit_name, filename):
     # Plot multiple histograms
     # Histograms of misfit distribution for all stations at each filter period
-    # XXX Make this a separate function
-
     plt.close()
 
-    fname = 'output_NGLL_test_cook_basin3_vsmin_1000_ismooth1/' + 'hist_' + items[0]["component"] + '.pdf'
+    misfit_all = []
+    for item in items:
+        misfit_all.append(item['misfit_values'])
 
-    nrows = 4
-    ncols = 3
+    misfit_all= np.asarray(misfit_all)
+
+    nrows = 3
+    ncols = 4
     bins_range = (misfit_all.min(), misfit_all.max())
 
     fig = plt.figure(figsize=(3*ncols, 3*nrows))
@@ -97,10 +100,16 @@ def plot_misfit_curves(items, threshold, threshold_is_upper_limit,
         ax = fig.add_subplot(nrows, ncols, i+1)
         #ax=plt.gca()
         ax.hist(misfit_all[:,i], range=bins_range, bins=50)
-        ax.set_title('t > ' + str(items[0]["periods"][i]) + ' s',fontsize=10,alpha=0.1)
-        ax.set_ylim([0, 70])
+        ax.set_title('t > ' + str(items[0]["periods"][i]) + ' s', fontsize=12)
+        ax.set_ylim([0, 80])
+        ax.set_ylabel("Nstn")
+        ax.set_xlabel("%s" % pretty_misfit_name)
 
-    fig.savefig(fname)
+    fig.suptitle("%s misfit distribution for component %s" % (
+        pretty_misfit_name, component))
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+    fig.savefig(filename)
 
 def plot_histogram(items, threshold, threshold_is_upper_limit,
                    component, pretty_misfit_name, filename):

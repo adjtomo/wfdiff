@@ -184,9 +184,9 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     tensor  = ev.focal_mechanisms[0].tensor
     ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
              tensor.m_rt, tensor.m_rp, tensor.m_tp]
-    x, y = m(ev.origins[0].longitude, ev.origins[0].latitude)
-    b = beach(ev_mt, xy=(x, y), width=int(4000*ev.magnitudes[0].mag), 
-              linewidth=1)
+    ex, ey = m(ev.origins[0].longitude, ev.origins[0].latitude)
+    b = beach(ev_mt, xy=(ex, ey), width=int(5000*ev.magnitudes[0].mag), 
+              linewidth=0.5, facecolor='deepskyblue')
     ax.add_collection(b)
 
     cbar = m.colorbar(data, location="right", pad="15%")
@@ -196,9 +196,61 @@ def plot_map(items, threshold, threshold_is_upper_limit,
               pretty_misfit_name, component), fontsize="small")
     plt.savefig(filename)
 
+    # ----------------------------------------------------------
+    # XXX Make separate function
+    plt.close()
+
+    misfit_all = []
+    for item in items:
+        misfit_all.append(item['misfit_values'])
+
+    misfit_all= np.asarray(misfit_all)
+
+    nrows = 3
+    ncols = 4
+    bins_range = (misfit_all.min(), misfit_all.max())
+
+    fig = plt.figure(figsize=(3*ncols, 3*nrows))
+
+    for i in range(len(items[0]["periods"])):
+        ax = fig.add_subplot(nrows, ncols, i+1)
+        m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
+                        lat_mean, stepsize=4, resolution='c')
+        data = m.scatter(x, y, c=misfit_all[:,i], s=30, vmin=misfit_all.min(),
+                         vmax=misfit_all.max(), cmap=cm, alpha=0.9, zorder=10)
+        #m.drawmeridians([])
+        #m.drawparallels([])
+        # Add beachball
+        b = beach(ev_mt, xy=(ex, ey), width=int(8000*ev.magnitudes[0].mag), 
+              linewidth=.5, facecolor='deepskyblue')
+        ax.add_collection(b)
+        # Add colorbar for the last subplot
+        #if i == (len(items[0]["periods"]) -1):
+        #    divider = make_axes_locatable(ax)
+        #    cax = divider.append_axes("right", size="5%", pad=0.05)
+        #    cbar = m.colorbar(data, location="right", pad="15%", shrink=0.75)
+        #    cbar.set_label(pretty_misfit_name)
+
+        ax.set_title('t > ' + str(items[0]["periods"][i]) + ' s', fontsize=12)
+        ax.add_collection(b)
+        #ax.set_xticks()
+        #ax.set_yticks()
+
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    divider = make_axes_locatable(plt.gca())
+    cax = divider.append_axes("right", size="5%", pad=1, aspect=10)
+    #fig.tight_layout(rect=[0.3, 0.01, 0.95, 0.95])
+    #cax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(data, cax=cax)
+
+    fig.suptitle("%s misfit distribution for component %s" % (
+            pretty_misfit_name, component))
+    filename = 'output_NGLL_test_cook_basin3_vsmin_1000_ismooth1/maps_' + component +'.pdf'
+    
+    fig.savefig(filename)
 
 def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
-                center_latitude, ax=None):
+                center_latitude, stepsize = None, resolution = None, ax=None):
     """
     Helper function attempting to automatically choose a good map projection.
 
@@ -230,22 +282,23 @@ def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
       
         # Try to pick suitable tick-marks increment and resolution
         # on the basis of size of map region
-        if longitudinal_extent > 50.0:
-            stepsize = 10.0
-            resolution = "i"
-        elif 20.0 < longitudinal_extent <= 50.0:
-            stepsize = 5.0
-            resolution = "i"
-        elif 5.0 < longitudinal_extent <= 20.0:
-            stepsize = 2.0
-            resolution = "i"
-        elif 2.0 < longitudinal_extent < 5.0:
-            stepsize = 1.0
-            resolution = "h"
-        else:
-            stepsize = 0.5
-            resolution = "h"
-
+        if stepsize is None or resolution is None:
+            if longitudinal_extent > 50.0:
+                stepsize = 10.0
+                resolution = "i"
+            elif 20.0 < longitudinal_extent <= 50.0:
+                stepsize = 5.0
+                resolution = "i"
+            elif 5.0 < longitudinal_extent <= 20.0:
+                stepsize = 2.0
+                resolution = "i"
+            elif 2.0 < longitudinal_extent < 5.0:
+                stepsize = 1.0
+                resolution = "h"
+            else:
+                stepsize = 0.5
+                resolution = "h"
+        
         # Change map dimensions from degree to meters
         width, _, _  = base.gps2dist_azimuth(center_latitude, lon_min, center_latitude, lon_max) 
         height, _, _ = base.gps2dist_azimuth(lat_min, center_longitude, lat_max, center_longitude) 
@@ -284,7 +337,7 @@ def _plot_features(map_object, stepsize):
     else:
         label = False
     parallels = np.arange(-90.0, 90.0, stepsize)
-    map_object.drawparallels(parallels, labels=[False, label, False, False],
+    map_object.drawparallels(parallels, labels=[label, False, False, False],
                              zorder=200, **LINESTYLE)
     # Meridians.
     if map_object.projection in ["laea"]:

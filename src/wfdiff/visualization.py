@@ -105,7 +105,7 @@ def plot_misfit_hist(items, component, pretty_misfit_name, filename):
         ax.set_ylabel("Nstn")
         ax.set_xlabel("%s" % pretty_misfit_name)
 
-    fig.suptitle("%s misfit distribution for component %s" % (
+    fig.suptitle("%s distribution for component %s" % (
         pretty_misfit_name, component))
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
@@ -181,7 +181,7 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     ax = plt.gca()
 
     # plot beachball
-    tensor  = ev.focal_mechanisms[0].tensor
+    tensor  = ev.focal_mechanisms[0].moment_tensor.tensor
     ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
              tensor.m_rt, tensor.m_rp, tensor.m_tp]
     ex, ey = m(ev.origins[0].longitude, ev.origins[0].latitude)
@@ -233,17 +233,13 @@ def plot_map(items, threshold, threshold_is_upper_limit,
 
         ax.set_title('t > ' + str(items[0]["periods"][i]) + ' s', fontsize=12)
         ax.add_collection(b)
-        #ax.set_xticks()
-        #ax.set_yticks()
 
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    divider = make_axes_locatable(plt.gca())
-    cax = divider.append_axes("right", size="5%", pad=1, aspect=10)
-    #fig.tight_layout(rect=[0.3, 0.01, 0.95, 0.95])
-    #cax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-    fig.colorbar(data, cax=cax)
+    fig.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.9, 0.1, 0.01, 0.85])
+    fig.colorbar(data, cax=cbar_ax)
+    fig.tight_layout(rect=[0.08, 0.03, 0.9, 0.9])
 
-    fig.suptitle("%s misfit distribution for component %s" % (
+    fig.suptitle("%s distribution for component %s" % (
             pretty_misfit_name, component))
     filename = 'output_NGLL_test_cook_basin3_vsmin_1000_ismooth1/maps_' + component +'.pdf'
     

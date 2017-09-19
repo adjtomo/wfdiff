@@ -30,7 +30,7 @@ from mpi4py import MPI
 import numpy as np
 
 from . import logger, misfits, processing, visualization, watermark
-from .specfem_helper import read_specfem_stations_file, read_specfem_ascii_waveform_file, read_specfem_cmtsolution_file
+from .specfem_helper import read_specfem_stations_file, read_specfem_ascii_waveform_file
 
 plt.style.use("ggplot")
 
@@ -273,7 +273,7 @@ class Results(object):
 
         # Read CMTSOLUTION file if available
         if cmtsolution_file:
-            ev = read_specfem_cmtsolution_file(cmtsolution_file)
+            ev = obspy.read_events(cmtsolution_file)
         else:
             ev = None
 
@@ -281,7 +281,7 @@ class Results(object):
         self.plot_misfits(thresholds, output_directory, outformat = outformat)
         self.plot_misfits_hist(thresholds, output_directory, outformat = outformat)
         self.plot_histograms(thresholds, output_directory, outformat = outformat)
-        self.plot_maps(thresholds, output_directory, ev = ev, outformat = outformat)
+        self.plot_maps(thresholds, output_directory, ev = ev[0], outformat = outformat)
 
 
 class WaveformDataSet(object):

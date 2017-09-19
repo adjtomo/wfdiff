@@ -10,20 +10,19 @@ station_file = 'test_data/STATIONS'
 waveforms = 'test_data/NGLL5/*semd'
 # Also run this
 # To create RTZ for NGLL7 case
-waveforms = 'test_data/NGLL7/*semd'
-
+#waveforms = 'test_data/NGLL7/*semd'
 
 #-----------------------------------------------------------------
 
 # Read CMTSOLUTION file
-ev = sh.read_specfem_cmtsolution_file(cmtsolution_file)
-eid = sh.otime2eid(ev.origins[0].time)
+ev = obspy.read_events(cmtsolution_file)
+eid = sh.otime2eid(ev[0].origins[0].time)
 
 # Read station file
 stn = sh.read_specfem_stations_file(station_file)
 
 # add event info
-st = sh.add_event_info(ev, stn, waveforms)
+st = sh.add_event_info(ev[0], stn, waveforms)
 
 # save ENZ as sac
 ENZ_dir = eid +'_ENZ'

@@ -22,40 +22,6 @@ import pandas
 import glob
 import os
 
-def read_specfem_cmtsolution_file(filename):
-    """
-    Read a SPECFEM CMTSOLUTION file
-    """
-    with open(filename) as f:
-        content = f.readlines()
-    c = [x.strip() for x in content]
-
-    # create event object
-    t = Tensor()
-    t.m_rr, t.m_tt, t.m_pp, t.m_rt, t.m_rp, t.m_tp = float(c[7].split()[1]), float(c[8].split()[1]), float(c[9].split()[1]),float(c[10].split()[1]), float(c[11].split()[1]),float(c[12].split()[1])    # Moment tensor
-    mt = MomentTensor()
-    mt.tensor = t
-    org = Origin()
-    org.time = UTCDateTime(int(c[0].split()[1]), int(c[0].split()[2]), 
-                           int(c[0].split()[3]), int(c[0].split()[4]), 
-                           int(c[0].split()[5]), float(c[0].split()[6]))    # origin time
-    org.latitude = c[4].split()[1]     # event latitude
-    org.longitude = c[5].split()[1]    # event longitude
-    org.depth = c[6].split()[1]        # event depth 
-    mag = Magnitude()
-    mag.mag = c[0].split()[10]         # magnitude
-    mag.magnitude_type = "Mw"
-    ev = Event()
-    ev.origins.append(org)
-    ev.magnitudes.append(mag)
-    ev.focal_mechanisms.append(mt)
-    
-    # Not attributes of the event object
-    evname = c[1].split()[2]   # event name used in the simulation
-    tshift = c[2].split()[2]   # time-shift
-    hdur = c[3].split()[2]     # half-duration
-
-    return ev
 
 def read_specfem_stations_file(filename):
     """

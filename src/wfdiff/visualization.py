@@ -17,11 +17,17 @@ import matplotlib.cm
 import matplotlib.pylab as plt
 from mpl_toolkits.basemap import Basemap
 import numpy as np
-from obspy.geodetics import base
+import sys
+
 from obspy.imaging.beachball import beach
+from obspy.geodetics import gps2dist_azimuth
 
 from .utils import rightmost_threshold_crossing
-#from adjustText import adjust_text # [unoffical] To prevent overlapping station names on the map 
+
+try:
+    from adjustText import adjust_text  # [unoffical] To prevent overlapping station names on the map 
+except ImportError:
+    pass
 
 plt.style.use("ggplot")
 
@@ -175,9 +181,10 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     
     for stnm, xi, yi in zip(station_array, x, y):
         texts.append(plt.text(xi, yi, stnm,fontsize=5)) 
-    #adjust_text(texts, force_points=1, force_text=1, expand_points=(1,1), 
-    #            expand_text=(1,1), arrowprops=dict(arrowstyle="<-", color='black', 
-    #                                               alpha=0.5, lw=0.5)) # require adjust_Text module
+    if 'adjust_text' in sys.modules:
+        adjust_text(texts, force_points=1, force_text=1, expand_points=(1,1), 
+                    expand_text=(1,1), arrowprops=dict(arrowstyle="<-", color='black', 
+                                                       alpha=0.5, lw=0.5)) # require adjust_Text module
     ax = plt.gca()
 
     # plot beachball
@@ -296,8 +303,8 @@ def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
                 resolution = "h"
         
         # Change map dimensions from degree to meters
-        width, _, _  = base.gps2dist_azimuth(center_latitude, lon_min, center_latitude, lon_max) 
-        height, _, _ = base.gps2dist_azimuth(lat_min, center_longitude, lat_max, center_longitude) 
+        width, _, _  = gps2dist_azimuth(center_latitude, lon_min, center_latitude, lon_max) 
+        height, _, _ = gps2dist_azimuth(lat_min, center_longitude, lat_max, center_longitude) 
         # add little extra margin around the map
         map_margin = 100000
         width += map_margin

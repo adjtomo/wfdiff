@@ -264,16 +264,16 @@ class Results(object):
                     "%s_map_%s.%s" % (misfit, component, outformat)),
                 ev=ev)
 
-    def plot_all(self, thresholds, output_directory, cmtsolution_file = None, 
+    def plot_all(self, thresholds, output_directory, event_file = None, 
                  outformat='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
                              "misfits: '%s'" % self.available_misfits)
 
-        # Read CMTSOLUTION file if available
-        if cmtsolution_file:
-            ev = obspy.read_events(cmtsolution_file)
+        # Read EVENT file if available
+        if event_file:
+            ev = obspy.read_events(event_file)
         else:
             ev = None
 

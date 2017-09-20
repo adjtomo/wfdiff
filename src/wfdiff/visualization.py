@@ -25,7 +25,7 @@ from obspy.geodetics import gps2dist_azimuth
 from .utils import rightmost_threshold_crossing
 
 try:
-    from adjustText import adjust_text  # [unoffical] To prevent overlapping station names on the map 
+    import adjustText     # [unoffical] To prevent overlapping station names on the map 
 except ImportError:
     pass
 
@@ -143,7 +143,7 @@ def plot_histogram(items, threshold, threshold_is_upper_limit,
 
 
 def plot_map(items, threshold, threshold_is_upper_limit,
-             component, pretty_misfit_name, filename, ev=None):
+             component, pretty_misfit_name, filename, event=None):
     # Choose red to green colormap.
     cm = matplotlib.cm.RdYlGn_r
 
@@ -165,8 +165,8 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     resolvable_periods = np.array(resolvable_periods)
 
     plt.close()
-    lat_plot = np.append(latitudes, ev.origins[0].latitude)
-    lon_plot = np.append(longitudes, ev.origins[0].longitude)
+    lat_plot = np.append(latitudes, event.origins[0].latitude)
+    lon_plot = np.append(longitudes, event.origins[0].longitude)
     lat_mean = (lat_plot.min() + lat_plot.max())/2
     lon_mean = (lon_plot.min() + lon_plot.max())/2
     m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
@@ -181,18 +181,18 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     
     for stnm, xi, yi in zip(station_array, x, y):
         texts.append(plt.text(xi, yi, stnm,fontsize=5)) 
-    if 'adjust_text' in sys.modules:
-        adjust_text(texts, force_points=1, force_text=1, expand_points=(1,1), 
+    if 'adjustText' in sys.modules:   # require adjust_Text module
+        adjustText.adjust_text(texts, force_points=1, force_text=1, expand_points=(1,1), 
                     expand_text=(1,1), arrowprops=dict(arrowstyle="<-", color='black', 
-                                                       alpha=0.5, lw=0.5)) # require adjust_Text module
+                                                       alpha=0.5, lw=0.5)) 
     ax = plt.gca()
 
     # plot beachball
-    tensor  = ev.focal_mechanisms[0].moment_tensor.tensor
+    tensor  = event.focal_mechanisms[0].moment_tensor.tensor
     ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
              tensor.m_rt, tensor.m_rp, tensor.m_tp]
-    ex, ey = m(ev.origins[0].longitude, ev.origins[0].latitude)
-    b = beach(ev_mt, xy=(ex, ey), width=int(5000*ev.magnitudes[0].mag), 
+    ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+    b = beach(ev_mt, xy=(ex, ey), width=int(5000*event.magnitudes[0].mag), 
               linewidth=0.5, facecolor='deepskyblue')
     ax.add_collection(b)
 
@@ -203,13 +203,27 @@ def plot_map(items, threshold, threshold_is_upper_limit,
               pretty_misfit_name, component), fontsize="small")
     plt.savefig(filename)
 
-    # ----------------------------------------------------------
-    # XXX Make separate function
-    plt.close()
 
+def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
+
+    # Choose red to green colormap.
+    cm = matplotlib.cm.RdYlGn_r
+
+    longitudes = np.array([_i["longitude"] for _i in items])
+    latitudes = np.array([_i["latitude"] for _i in items])
+    
     misfit_all = []
     for item in items:
         misfit_all.append(item['misfit_values'])
+
+    plt.close()
+    lat_plot = np.append(latitudes, event.origins[0].latitude)
+    lon_plot = np.append(longitudes, event.origins[0].longitude)
+    lat_mean = (lat_plot.min() + lat_plot.max())/2
+    lon_mean = (lon_plot.min() + lon_plot.max())/2
+    m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
+                    lat_mean) 
+    x, y = m(longitudes, latitudes)
 
     misfit_all= np.asarray(misfit_all)
 
@@ -219,16 +233,20 @@ def plot_map(items, threshold, threshold_is_upper_limit,
 
     fig = plt.figure(figsize=(3*ncols, 3*nrows))
 
+    # Get beachball info
+    tensor  = event.focal_mechanisms[0].moment_tensor.tensor
+    ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
+             tensor.m_rt, tensor.m_rp, tensor.m_tp]
+    ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+
     for i in range(len(items[0]["periods"])):
         ax = fig.add_subplot(nrows, ncols, i+1)
         m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
                         lat_mean, stepsize=4, resolution='c')
         data = m.scatter(x, y, c=misfit_all[:,i], s=30, vmin=misfit_all.min(),
                          vmax=misfit_all.max(), cmap=cm, alpha=0.9, zorder=10)
-        #m.drawmeridians([])
-        #m.drawparallels([])
         # Add beachball
-        b = beach(ev_mt, xy=(ex, ey), width=int(8000*ev.magnitudes[0].mag), 
+        b = beach(ev_mt, xy=(ex, ey), width=int(8000*event.magnitudes[0].mag), 
               linewidth=.5, facecolor='deepskyblue')
         ax.add_collection(b)
         # Add colorbar for the last subplot
@@ -251,6 +269,7 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     filename = 'output_NGLL_test_cook_basin3_vsmin_1000_ismooth1/maps_' + component +'.pdf'
     
     fig.savefig(filename)
+
 
 def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
                 center_latitude, stepsize = None, resolution = None, ax=None):

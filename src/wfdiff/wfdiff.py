@@ -232,7 +232,7 @@ class Results(object):
                     output_directory,
                     "%s_histogram_%s.%s" % (misfit, component, outformat)))
 
-    def plot_maps(self, thresholds, output_directory, ev, outformat):
+    def plot_maps(self, thresholds, output_directory, event, outformat):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -262,7 +262,36 @@ class Results(object):
                 filename=os.path.join(
                     output_directory,
                     "%s_map_%s.%s" % (misfit, component, outformat)),
-                ev=ev)
+                event=event)
+
+    def plot_misfit_maps(self, thresholds, output_directory, event, outformat):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+
+        if COMM.rank == 0:
+            jobs = []
+            for misfit in self.available_misfits:
+                for component in \
+                        self.get_available_components_for_misfit(misfit):
+                    jobs.append((misfit, component))
+            jobs = split(jobs, COMM.size)
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+
+        for misfit, component in jobs:
+            visualization.plot_misfit_map(
+                items=self.filter(misfit, component),
+                component=component,
+                pretty_misfit_name=self.__misfit_measurements[misfit][
+                    "misfit_pretty_name"],
+                filename=os.path.join(
+                    output_directory,
+                    "%s_map_%s.%s" % (misfit, component, outformat)),
+                event=event)
 
     def plot_all(self, thresholds, output_directory, event_file = None, 
                  outformat='pdf'):
@@ -273,15 +302,16 @@ class Results(object):
 
         # Read EVENT file if available
         if event_file:
-            ev = obspy.read_events(event_file)
+            event = obspy.read_events(event_file)
         else:
-            ev = None
+            event = None
 
         # Plot results
         self.plot_misfits(thresholds, output_directory, outformat = outformat)
         self.plot_misfits_hist(thresholds, output_directory, outformat = outformat)
         self.plot_histograms(thresholds, output_directory, outformat = outformat)
-        self.plot_maps(thresholds, output_directory, ev = ev[0], outformat = outformat)
+        self.plot_maps(thresholds, output_directory, event = event[0], outformat = outformat)
+        self.plot_misfit_maps(thresholds, output_directory, event = event[0], outformat = outformat)
 
 
 class WaveformDataSet(object):

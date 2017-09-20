@@ -4,7 +4,7 @@
 from wfdiff.wfdiff import WFDiff
 
 # A non-existant directory where the output will be stored.
-#OUTPUT_DIRECTORY = "output"
+#output_directory = "output"
 
 # Choose which misfits you want and the threshold values.
 THRESHOLDS = {
@@ -41,8 +41,8 @@ if iex == 1:
     cmtsolution_file='./test_data/CMTSOLUTION'
     trace_tags = ['NGLL5','NGLL7']
     is_specfem_ascii = True
-    OUTPUT_DIRECTORY = "output_test"
-    outformat = 'pdf' # or ps, eps etc.
+    output_directory = "output_test"
+    output_format = 'pdf' # or ps, eps etc.
 
 elif iex == 2: 
     # Test using sac data (using ENZ components) - Same as the Example 1
@@ -52,8 +52,8 @@ elif iex == 2:
     high_res_seismos="./20140831030657110_NGLL7_ENZ/*sac"
     trace_tags = ['NGLL5-ENZ','NGLL7-ENZ']
     is_specfem_ascii = False
-    OUTPUT_DIRECTORY = "output_test"
-    outformat = 'pdf' # or ps, eps etc.
+    output_directory = "output_test"
+    output_format = 'pdf' # or ps, eps etc.
 
 elif iex == 3:
     # Test using sac data (using RTZ components)
@@ -63,8 +63,8 @@ elif iex == 3:
     station_info="./test_data/STATIONS"
     trace_tags = ['NGLL5-RTZ','NGLL7-RTZ']
     is_specfem_ascii = False
-    OUTPUT_DIRECTORY = "output_test"
-    outformat = 'pdf' # or ps, eps etc.
+    output_directory = "output_test"
+    output_format = 'pdf' # or ps, eps etc.
 
 #--------------------------------------------------------------------------------
 
@@ -89,16 +89,16 @@ c = WFDiff(
 # if necessary to perform the subsequent analysis.
 results = c.run(
     misfit_types=list(THRESHOLDS.keys()),
-    output_directory=OUTPUT_DIRECTORY,trace_tags=trace_tags,
+    output_directory=output_directory, trace_tags=trace_tags,
     # Setting this to True will create A LOT of debug plots which are very useful
     # to tune the algorithm to the problem at hand. For production runs set this to
     # False.
     save_debug_plots=True,
-    outformat=outformat)
+    output_format=output_format)
 
 # This produces all kinds of plots for all components and misfits it encounters.
 results.plot_all(
-    output_directory=OUTPUT_DIRECTORY,
+    output_directory=output_directory,
     thresholds=THRESHOLDS,
     cmtsolution_file=cmtsolution_file,
-    outformat=outformat)
+    output_format=output_format)

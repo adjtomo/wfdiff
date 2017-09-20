@@ -90,11 +90,7 @@ def plot_misfit_hist(items, component, pretty_misfit_name, filename):
     # Histograms of misfit distribution for all stations at each filter period
     plt.close()
 
-    misfit_all = []
-    for item in items:
-        misfit_all.append(item['misfit_values'])
-
-    misfit_all= np.asarray(misfit_all)
+    misfit_all = np.array([_i["misfit_values"] for _i in items])
 
     nrows = 3
     ncols = 4
@@ -151,9 +147,9 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     latitudes = np.array([_i["latitude"] for _i in items])
 
     resolvable_periods = []
-    period_range = items[0]["periods"]
-
     station_array = []
+    period_range = items[0]["periods"]
+ 
     for item in items:
         # Find the threshold.
         point = rightmost_threshold_crossing(
@@ -212,9 +208,7 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
     longitudes = np.array([_i["longitude"] for _i in items])
     latitudes = np.array([_i["latitude"] for _i in items])
     
-    misfit_all = []
-    for item in items:
-        misfit_all.append(item['misfit_values'])
+    misfit_all = np.array([_i["misfit_values"] for _i in items])
 
     plt.close()
     lat_plot = np.append(latitudes, event.origins[0].latitude)

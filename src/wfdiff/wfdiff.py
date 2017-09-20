@@ -137,7 +137,7 @@ class Results(object):
             if _i["component"] == component], key=lambda x: (
             x["network"], x["station"], x["component"]))
 
-    def plot_misfits(self, thresholds, output_directory, outformat):
+    def plot_misfits(self, thresholds, output_directory, output_format = 'pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -169,9 +169,9 @@ class Results(object):
                 filename=os.path.join(
                     output_directory,
                     "%s_misfit_curves_%s.%s" % (misfit,
-                                                           component, outformat)))
+                                                           component, output_format)))
 
-    def plot_misfits_hist(self, thresholds, output_directory, outformat):
+    def plot_misfits_hist(self, thresholds, output_directory, output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -198,10 +198,10 @@ class Results(object):
                 filename=os.path.join(
                     output_directory,
                     "%s_misfit_hist_%s.%s" % (misfit,
-                                                           component, outformat)))
+                                                           component, output_format)))
 
 
-    def plot_histograms(self, thresholds, output_directory, outformat):
+    def plot_histograms(self, thresholds, output_directory, output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -230,9 +230,9 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_histogram_%s.%s" % (misfit, component, outformat)))
+                    "%s_histogram_%s.%s" % (misfit, component, output_format)))
 
-    def plot_maps(self, thresholds, output_directory, event, outformat):
+    def plot_maps(self, thresholds, output_directory, event, output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -261,10 +261,10 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_map_%s.%s" % (misfit, component, outformat)),
+                    "%s_map_%s.%s" % (misfit, component, output_format)),
                 event=event)
 
-    def plot_misfit_maps(self, thresholds, output_directory, event, outformat):
+    def plot_misfit_maps(self, thresholds, output_directory, event, output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -290,11 +290,11 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_map_%s.%s" % (misfit, component, outformat)),
+                    "%s_map_%s.%s" % (misfit, component, output_format)),
                 event=event)
 
     def plot_all(self, thresholds, output_directory, event_file = None, 
-                 outformat='pdf'):
+                 output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -307,11 +307,11 @@ class Results(object):
             event = None
 
         # Plot results
-        self.plot_misfits(thresholds, output_directory, outformat = outformat)
-        self.plot_misfits_hist(thresholds, output_directory, outformat = outformat)
-        self.plot_histograms(thresholds, output_directory, outformat = outformat)
-        self.plot_maps(thresholds, output_directory, event = event[0], outformat = outformat)
-        self.plot_misfit_maps(thresholds, output_directory, event = event[0], outformat = outformat)
+        self.plot_misfits(thresholds, output_directory, output_format = output_format)
+        self.plot_misfits_hist(thresholds, output_directory, output_format = output_format)
+        self.plot_histograms(thresholds, output_directory, output_format = output_format)
+        self.plot_maps(thresholds, output_directory, event = event[0], output_format = output_format)
+        self.plot_misfit_maps(thresholds, output_directory, event = event[0], output_format = output_format)
 
 
 class WaveformDataSet(object):
@@ -548,7 +548,7 @@ class WFDiff(object):
                                 len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_types, output_directory, trace_tags=['low res','high res'], save_debug_plots=False, outformat='pdf'):
+    def run(self, misfit_types, output_directory, trace_tags=['low res','high res'], save_debug_plots=False, output_format='pdf'):
         misfit_functions = {}
         # Check if all the misfit types also have corresponding functions.
         for m_type in misfit_types:
@@ -693,7 +693,7 @@ class WFDiff(object):
                 filename = os.path.join(
                     debug_folder,
                     "%s_%s_%s.%s" % (job.network, job.station,
-                                      job.component, outformat))
+                                      job.component, output_format))
                 plt.savefig(filename)
 
             # Now assemble a frequency dependent misfit measurement for each

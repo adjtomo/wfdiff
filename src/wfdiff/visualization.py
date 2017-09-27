@@ -260,7 +260,6 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
 
     fig.suptitle("%s distribution for component %s" % (
             pretty_misfit_name, component))
-    filename = 'output_NGLL_test_cook_basin3_vsmin_1000_ismooth1/maps_' + component +'.pdf'
     
     fig.savefig(filename)
 

@@ -23,6 +23,7 @@ import os
 import sys
 
 import obspy
+import pyasdf
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pylab as plt
@@ -30,7 +31,7 @@ from mpi4py import MPI
 import numpy as np
 
 from . import logger, misfits, processing, visualization, watermark
-from .specfem_helper import read_specfem_stations_file, read_specfem_ascii_waveform_file
+from .specfem_helper import *
 
 plt.style.use("ggplot")
 
@@ -230,7 +231,7 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_histogram_%s.%s" % (misfit, component, output_format)))
+                    "%s_minres_histogram_%s.%s" % (misfit, component, output_format)))
 
     def plot_maps(self, thresholds, output_directory, event, output_format='pdf'):
         # Make sure all thresholds are available.
@@ -261,7 +262,7 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_map_%s.%s" % (misfit, component, output_format)),
+                    "%s_minres_peiord_map_%s.%s" % (misfit, component, output_format)),
                 event=event)
 
     def plot_misfit_maps(self, thresholds, output_directory, event, output_format='pdf'):
@@ -290,7 +291,7 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_map_%s.%s" % (misfit, component, output_format)),
+                    "%s_subplots_map_%s.%s" % (misfit, component, output_format)),
                 event=event)
 
     def plot_all(self, thresholds, output_directory, event_file = None, 
@@ -452,6 +453,7 @@ class WaveformDataSet(object):
         # Convert to upper case to be a bit defensive.
         self.dataset_low[tuple([_i.upper() for _i in net_sta_comp])] = filename
 
+
     def set_stations_dataframe(self, df):
         """
         Set the stations dataframe of the data set object.
@@ -464,12 +466,13 @@ class WaveformDataSet(object):
 
 
 class WFDiff(object):
-    def __init__(self, low_res_seismos, high_res_seismos, station_info,
+    def __init__(self, low_res_seismos, high_res_seismos, stations_file,
                  t_min, t_max, dt,
                  data_units, desired_analysis_units,
                  starttime=None,
-                 endtime=None, get_net_sta_comp_fct=None,
-                 is_specfem_ascii=False):
+                 endtime=None, new_specfem_name=True,
+                 trace_tags=['low_res','high_res'], 
+                 wf_format='asdf'):
         """
 
         :param low_res_seismos: A UNIX style wildcard pattern to find the
@@ -478,9 +481,9 @@ class WFDiff(object):
         :param high_res_seismos: A UNIX style wildcard pattern to find the
             high resolution seismograms.
         :type high_res_seismos: str
-        :param station_info: A UNIX style wildcard pattern to find the
+        :param stations_file: A UNIX style wildcard pattern to find the
             station information.
-        :type station_info: str
+        :type stations_file: str
         :param t_min: The minimum period to test.
         :type t_min: float
         :param t_max: The maximum period to test.
@@ -494,21 +497,25 @@ class WFDiff(object):
             should be performed. One one of ``"displacement"``,
                 ``"velocity"``, ``"acceleration"``.
         :type desired_analysis_units: str
-        :param get_net_sta_comp_fct: A function that takes a seismogram
-            filename and returns network, station, and component of that
-            seismogram. Needed if the filename encodes that information.
-            SPECFEM recently changed their naming scheme so no default is
-            provided as it would be too dangerous to be wrong.
-        :type get_net_sta_comp_fct: function
-        :param is_specfem_ascii: If `True`, the waveform files will be
-            assumed to be the ASCII files from SPECFEM.
-        :type is_specfem_ascii: bool
+        :param new_specfem_name_format: ``True`` if files are in NET.STA.CHAN format
+             ``False`` if files are in STA.NET.CHAN (old naming convention)
+        :type new_specfem_name_format: boolean
+        :param wf_format: If `specfem`, the waveform files will be
+            assumed to be the ASCII files from SPECFEM. 
+            Other options: `asdf`
+        :type is_specfem_ascii: str
         """
         self.low_res_seismos = low_res_seismos
         self.high_res_seismos = high_res_seismos
-        self.get_net_sta_comp_fct = get_net_sta_comp_fct
+        self.new_specfem_name = new_specfem_name
         self.wf_dataset = WaveformDataSet()
-        self.is_specfem_ascii = is_specfem_ascii
+        self.wf_format = wf_format
+        self.trace_tags = trace_tags
+
+        # Read asdf data
+        if self.wf_format is 'asdf':
+            self.asdf_low = pyasdf.ASDFDataSet(self.low_res_seismos)
+            self.asdf_high = pyasdf.ASDFDataSet(self.high_res_seismos)
 
         # Check units here.
         acceptable_units = ["displacement", "velocity", "acceleration"]
@@ -534,8 +541,14 @@ class WFDiff(object):
 
         if COMM.rank == 0:
             self._find_waveform_files()
-            self.wf_dataset.set_stations_dataframe(read_specfem_stations_file(
-                station_info))
+
+            # Get stations dataframe
+            if self.wf_format is 'asdf':
+                df = get_stations_from_asdf(self.asdf_low)
+            else:
+                df = read_specfem_stations_file(stations_file)
+
+            self.wf_dataset.set_stations_dataframe(df)
 
             avail_stations = self.wf_dataset.stations
             wf_s = self.wf_dataset.waveform_stations
@@ -548,7 +561,8 @@ class WFDiff(object):
                                 len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_types, output_directory, trace_tags=['low res','high res'], save_debug_plots=False, output_format='pdf'):
+    def run(self, misfit_types, output_directory,
+            save_debug_plots=False, output_format='pdf'):
         misfit_functions = {}
         # Check if all the misfit types also have corresponding functions.
         for m_type in misfit_types:
@@ -595,13 +609,21 @@ class WFDiff(object):
             # Read the waveform traces. Fork depending on SPECFEM ASCII
             # output or not. If not data is read with ObsPy which should be
             # able to read almost anything.
-            if self.is_specfem_ascii:
+            if self.wf_format is 'specfem':
                 tr_high = read_specfem_ascii_waveform_file(
                     job.filename_high, network=job.network,
                     station=job.station, channel=job.component)[0]
                 tr_low = read_specfem_ascii_waveform_file(
                     job.filename_low, network=job.network, station=job.station,
                     channel=job.component)[0]
+            elif self.wf_format is 'asdf':
+                tr_high = self.asdf_high.waveforms[ \
+                    job.network + '_' + job.station][self.trace_tags[1]]. \
+                    select(channel='*'+job.component)[0]
+                tr_low = self.asdf_low.waveforms[ \
+                    job.network + '_' + job.station][self.trace_tags[0]]. \
+                    select(channel='*'+job.component)[0]
+                #print(self.asdf_low.waveforms[job.network+'.'+job.station])
             else:
                 tr_high = obspy.read(job.filename_high)[0]
                 tr_low = obspy.read(job.filename_low)[0]
@@ -626,13 +648,14 @@ class WFDiff(object):
                 plt.subplot(len(self.periods) + 1, 1, 1)
                 plt.subplots_adjust(left=0.0, right=1.0, top=1.0,
                                     bottom=0.0, wspace=0.0, hspace=0.0)
-                plt.plot(tr_high.data, color="red", label=trace_tags[1])
-                plt.plot(tr_low.data, color="blue", label=trace_tags[0])
+                plt.plot(tr_high.data, color="red", label=self.trace_tags[1])
+                plt.plot(tr_low.data, color="blue", label=self.trace_tags[0])
                 plt.legend(fontsize=8, loc=3)
                 # x-axis tick-marks and labels
                 xtick_len = 20
                 locs = np.arange(self.starttime/tr_low.stats.delta,
-                                   self.endtime/tr_low.stats.delta + 1, xtick_len/tr_low.stats.delta)
+                                 self.endtime/tr_low.stats.delta + 1, 
+                                 xtick_len/tr_low.stats.delta)
                 labels = map(str, locs*tr_low.stats.delta)
                 plt.xticks(locs)
                 plt.yticks([])
@@ -738,19 +761,45 @@ class WFDiff(object):
     def _find_waveform_files(self):
         """
         Finds the waveform files for the low and high resolution seismograms.
+        This is not needed for asdf format files
         """
         low_res = glob.glob(self.low_res_seismos)
         high_res = glob.glob(self.high_res_seismos)
 
-        for filename in low_res:
-            self.wf_dataset.add_waveform_to_dataset_low(
-                self.get_net_sta_comp_fct(os.path.basename(filename)),
-                filename)
+        # For asdf input files
+        if self.wf_format is 'asdf':
+            for _, st in enumerate(self.asdf_low.waveforms):
+                for tr in st[self.trace_tags[0]]: 
+                    net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
+                    sta_tag = net + '_' + sta
+                    trace_handle = "self.asdf_low.waveforms[sta_tag][self.trace_tags[0]].select(channel='*'+chan)"
+                    trace_handle = ""
+                    self.wf_dataset.add_waveform_to_dataset_low([net, sta, chan],
+                                                                trace_handle)
 
-        for filename in high_res:
-            self.wf_dataset.add_waveform_to_dataset_high(
-                self.get_net_sta_comp_fct(os.path.basename(filename)),
-                filename)
+            for _, st in enumerate(self.asdf_high.waveforms):
+                for tr in st[self.trace_tags[1]]: 
+                    net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
+                    sta_tag = net + '_' + sta
+                    trace_handle = "self.asdf_low.waveforms[sta_tag][self.trace_tags[1]].select(channel='*'+chan)"
+                    trace_handle = ""
+                    self.wf_dataset.add_waveform_to_dataset_high([net, sta, chan],
+                                                                trace_handle)
+
+
+        # For specfem files
+        else:
+            for filename in low_res:
+                self.wf_dataset.add_waveform_to_dataset_low(
+                    get_net_sta_comp(os.path.basename(filename),
+                                     format=self.new_specfem_name),
+                    filename)
+
+            for filename in high_res:
+                self.wf_dataset.add_waveform_to_dataset_high(
+                    get_net_sta_comp(os.path.basename(filename),
+                                     format=self.new_specfem_name),
+                    filename)
 
         c_chan = self.wf_dataset.common_channels
         a_chan = self.wf_dataset.channels_only_in_high_set

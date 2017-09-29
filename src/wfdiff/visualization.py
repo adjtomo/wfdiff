@@ -161,10 +161,16 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     resolvable_periods = np.array(resolvable_periods)
 
     plt.close()
-    lat_plot = np.append(latitudes, event.origins[0].latitude)
-    lon_plot = np.append(longitudes, event.origins[0].longitude)
+    if event is not None:
+        lat_plot = np.append(latitudes, event.origins[0].latitude)
+        lon_plot = np.append(longitudes, event.origins[0].longitude)
+    else:
+        lat_plot = latitudes
+        lon_plot = longitudes
+
     lat_mean = (lat_plot.min() + lat_plot.max())/2
     lon_mean = (lon_plot.min() + lon_plot.max())/2
+
     m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
                     lat_mean) 
 
@@ -184,13 +190,14 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     ax = plt.gca()
 
     # plot beachball
-    tensor  = event.focal_mechanisms[0].moment_tensor.tensor
-    ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
-             tensor.m_rt, tensor.m_rp, tensor.m_tp]
-    ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
-    b = beach(ev_mt, xy=(ex, ey), width=int(5000*event.magnitudes[0].mag), 
-              linewidth=0.5, facecolor='deepskyblue')
-    ax.add_collection(b)
+    if event is not None:
+        tensor  = event.focal_mechanisms[0].moment_tensor.tensor
+        ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
+                 tensor.m_rt, tensor.m_rp, tensor.m_tp]
+        ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+        b = beach(ev_mt, xy=(ex, ey), width=int(5000*event.magnitudes[0].mag), 
+                  linewidth=0.5, facecolor='deepskyblue')
+        ax.add_collection(b)
 
     cbar = m.colorbar(data, location="right", pad="15%")
     cbar.set_label("Minimum Resolvable Period [s]")
@@ -211,10 +218,17 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
     misfit_all = np.array([_i["misfit_values"] for _i in items])
 
     plt.close()
-    lat_plot = np.append(latitudes, event.origins[0].latitude)
-    lon_plot = np.append(longitudes, event.origins[0].longitude)
+
+    if event is not None:
+        lat_plot = np.append(latitudes, event.origins[0].latitude)
+        lon_plot = np.append(longitudes, event.origins[0].longitude)
+    else:
+        lat_plot = latitudes
+        lon_plot = longitudes
+
     lat_mean = (lat_plot.min() + lat_plot.max())/2
     lon_mean = (lon_plot.min() + lon_plot.max())/2
+
     m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
                     lat_mean) 
     x, y = m(longitudes, latitudes)
@@ -228,10 +242,11 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
     fig = plt.figure(figsize=(3*ncols, 3*nrows))
 
     # Get beachball info
-    tensor  = event.focal_mechanisms[0].moment_tensor.tensor
-    ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
-             tensor.m_rt, tensor.m_rp, tensor.m_tp]
-    ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+    if event is not None:
+        tensor  = event.focal_mechanisms[0].moment_tensor.tensor
+        ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
+                 tensor.m_rt, tensor.m_rp, tensor.m_tp]
+        ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
 
     for i in range(len(items[0]["periods"])):
         ax = fig.add_subplot(nrows, ncols, i+1)
@@ -240,9 +255,10 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
         data = m.scatter(x, y, c=misfit_all[:,i], s=30, vmin=misfit_all.min(),
                          vmax=misfit_all.max(), cmap=cm, alpha=0.9, zorder=10)
         # Add beachball
-        b = beach(ev_mt, xy=(ex, ey), width=int(8000*event.magnitudes[0].mag), 
-              linewidth=.5, facecolor='deepskyblue')
-        ax.add_collection(b)
+        if event is not None:
+            b = beach(ev_mt, xy=(ex, ey), width=int(8000*event.magnitudes[0].mag), 
+                      linewidth=.5, facecolor='deepskyblue')
+            ax.add_collection(b)
         # Add colorbar for the last subplot
         #if i == (len(items[0]["periods"]) -1):
         #    divider = make_axes_locatable(ax)
@@ -251,7 +267,6 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
         #    cbar.set_label(pretty_misfit_name)
 
         ax.set_title('t > ' + str(items[0]["periods"][i]) + ' s', fontsize=12)
-        ax.add_collection(b)
 
     fig.subplots_adjust(right=0.85)
     cbar_ax = fig.add_axes([0.9, 0.1, 0.01, 0.85])

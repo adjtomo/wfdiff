@@ -23,7 +23,7 @@ import os
 import sys
 
 import obspy
-import pyasdf
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pylab as plt
@@ -32,6 +32,11 @@ import numpy as np
 
 from . import logger, misfits, processing, visualization, watermark
 from .specfem_helper import *
+
+try:
+    import pyasdf     # For reading asdf waveform files
+except ImportError:
+    pass
 
 plt.style.use("ggplot")
 

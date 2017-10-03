@@ -21,8 +21,11 @@ from obspy.core.event import Event, Origin, Magnitude, FocalMechanism, MomentTen
 import pandas
 import glob
 import os
-from tqdm import tqdm
-import pyasdf
+#from tqdm import tqdm
+try:
+    import pyasdf     # For reading asdf waveform files
+except ImportError:
+    pass
 
 
 def read_specfem_stations_file(filename):

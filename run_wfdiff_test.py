@@ -93,12 +93,17 @@ c = WFDiff(
     t_min=.1, t_max=1, dt=.1,
     # Data window to take into account in seconds since the first sample.
     starttime=20, endtime=80,
+    # Set to 'True' if specfem filename are in NET.STA.CHA.* format
+    # Set to 'False' if specfem filename are in STA.NET.CHA.* format
     new_specfem_name=True,
+    # Tags printed on the plots
+    # Note: for the asdf files these are same as the waveform dataset tag
     trace_tags=trace_tags,
     # Set to 'specfem' if waveform ASCII files are used. 
     # Set to 'asdf' if asdf waveform file
     # All other fileformat should otherwise work just fine.
     wf_format=wf_format)
+
 
 # Perform the frequency dependent misfit measurements. Results will be stored
 # in 'results.json' in the output directory. This file can later be read again

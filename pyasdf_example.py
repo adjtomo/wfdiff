@@ -2,10 +2,29 @@ import wfdiff.specfem_helper as sh
 import pyasdf
 import obspy
 
-iex = 1
+iex = 0
+# 0: Default example
 # 1: Example of creating an asdf file
 # 2: Example of reading an asdf file
 # 3: Read asdf file rotate to RTZ
+
+if iex == 0:
+    # Need station and event files
+    stations_file = "./test_data/STATIONS"
+    event_file = './test_data/CMTSOLUTION'
+
+    # Convert low res file to asdf
+    specfem_folder = "./test_data/NGLL5"
+    asdf_filename = "./test_data/nenana_gll5.h5"
+    wf_tag = 'gll5'
+    sh.specfem_to_asdf(asdf_filename, specfem_folder, stations_file, event_file, wf_tag)
+
+    # Convert low res file to asdf
+    specfem_folder = "./test_data/NGLL7"
+    asdf_filename = "./test_data/nenana_gll7.h5"
+    wf_tag = 'gll7'
+    sh.specfem_to_asdf(asdf_filename, specfem_folder, stations_file, event_file, wf_tag)
+
 
 # Convert specfem file to asdf
 if iex == 1:

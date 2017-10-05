@@ -27,10 +27,19 @@ high_res_seismos = None   # high resolution files
 wf_format = None          # these could be sac, specfem, asdf or any other obspy suppported format
 trace_tags = None         # tags for low_res_seismos and high_res_seismos
 
-# Set processing params (filter range, etc) here
-# XXX
 
-iex = 4
+iex = 0
+# 0: Default example
+
+elif iex == 0:
+    # Use asdf file instead (Nenana example)
+    low_res_seismos="./test_data/nenana_gll5.h5"
+    high_res_seismos="./test_data/nenana_gll7.h5"
+    wf_format = 'asdf'
+    trace_tags = ['gll5','gll7']  # for waveform debug plots
+    asdf_tags = ['gll5','gll7']
+    output_directory = "output_test"
+    output_format = 'pdf' # or ps, eps etc.
 
 if iex == 1:
     # test data (using ENZ components)
@@ -77,7 +86,8 @@ elif iex == 4:
     low_res_seismos="./nenana_gll5.h5"
     high_res_seismos="./nenana_gll7.h5"
     wf_format = 'asdf'
-    trace_tags = ['gll5','gll7']  # These are SAME as the tags in the asdf file
+    trace_tags = ['gll5','gll7']  # for waveform debug plots
+    asdf_tags = ['gll5','gll7']
     output_directory = "output_test"
     output_format = 'pdf' # or ps, eps etc.
 #--------------------------------------------------------------------------------
@@ -92,13 +102,15 @@ c = WFDiff(
     # Periods to test.
     t_min=.1, t_max=1, dt=.1,
     # Data window to take into account in seconds since the first sample.
-    starttime=20, endtime=80,
+    starttime=20, endtime=100,
+    rotate_RTZ = True,
     # Set to 'True' if specfem filename are in NET.STA.CHA.* format
     # Set to 'False' if specfem filename are in STA.NET.CHA.* format
     new_specfem_name=True,
     # Tags printed on the plots
     # Note: for the asdf files these are same as the waveform dataset tag
     trace_tags=trace_tags,
+    asdf_tags=asdf_tags,
     # Set to 'specfem' if waveform ASCII files are used. 
     # Set to 'asdf' if asdf waveform file
     # All other fileformat should otherwise work just fine.

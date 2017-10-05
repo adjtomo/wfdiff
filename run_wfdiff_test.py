@@ -108,8 +108,8 @@ c = WFDiff(
     # Set to 'False' if specfem filename are in STA.NET.CHA.* format
     new_specfem_name=True,
     # Tags printed on the plots
-    # Note: for the asdf files these are same as the waveform dataset tag
     trace_tags=trace_tags,
+    # asdf dataset tags
     asdf_tags=asdf_tags,
     # Set to 'specfem' if waveform ASCII files are used. 
     # Set to 'asdf' if asdf waveform file

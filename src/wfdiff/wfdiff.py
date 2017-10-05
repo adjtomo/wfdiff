@@ -484,9 +484,11 @@ class WFDiff(object):
                  stations_file, event_file,
                  t_min, t_max, dt,
                  data_units, desired_analysis_units,
-                 starttime=None,
-                 endtime=None, new_specfem_name=True,
+                 rotate_RTZ = False,
+                 starttime=None, endtime=None, 
+                 new_specfem_name=True,
                  trace_tags=['low_res','high_res'], 
+                 asdf_tags=['ngll5','ngll7'],
                  wf_format='asdf'):
         """
 
@@ -526,8 +528,10 @@ class WFDiff(object):
         self.wf_dataset = WaveformDataSet()
         self.wf_format = wf_format
         self.trace_tags = trace_tags
+        self.asdf_tags = asdf_tags
         self.bundle_jobs_by_channels = True
         self.stations_file = stations_file
+        self.rotate_RTZ = rotate_RTZ
 
         # Read asdf data
         if self.wf_format is 'asdf':
@@ -646,18 +650,21 @@ class WFDiff(object):
                 st_low = read_specfem_files(job.filename_low)
             elif self.wf_format is 'asdf':
                 st_high = self.asdf_high.waveforms[ \
-                    job.network + '_' + job.station][self.trace_tags[1]]
+                    job.network + '_' + job.station][self.asdf_tags[1]]
                 st_low = self.asdf_low.waveforms[ \
-                    job.network + '_' + job.station][self.trace_tags[0]]
+                    job.network + '_' + job.station][self.asdf_tags[0]]
             else:
-                tr_high = obspy.read(job.filename_high)[0]
-                tr_low = obspy.read(job.filename_low)[0]
+                st_high = obspy.read(job.filename_high)[0]
+                st_low = obspy.read(job.filename_low)[0]
 
-            # Rotate 
-            st_high = add_event_station_info(st_high, self.event, self.stations)
-            st_high.rotate('NE->RT')
-            st_low = add_event_station_info(st_low, self.event, self.stations)
-            st_low.rotate('NE->RT')
+            # Rotate
+            if self.rotate_RTZ is True:
+                # Compute back_azimuth using event info and add it to trace.stats
+                # And then rotate
+                st_high = add_event_station_info(st_high, self.event, self.stations)
+                st_high.rotate('NE->RT')
+                st_low = add_event_station_info(st_low, self.event, self.stations)
+                st_low.rotate('NE->RT')
 
             # Sort to make sure they are in same order
             st_high.sort()
@@ -814,7 +821,7 @@ class WFDiff(object):
         # For asdf input files
         if self.wf_format is 'asdf':
             for _, st in enumerate(self.asdf_low.waveforms):
-                for tr in st[self.trace_tags[0]]: 
+                for tr in st[self.asdf_tags[0]]: 
                     net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
                     sta_tag = net + '_' + sta
                     filename = ''
@@ -824,7 +831,7 @@ class WFDiff(object):
                                                                 filename)
 
             for _, st in enumerate(self.asdf_high.waveforms):
-                for tr in st[self.trace_tags[1]]: 
+                for tr in st[self.asdf_tags[1]]: 
                     net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
                     sta_tag = net + '_' + sta
                     filename = ''

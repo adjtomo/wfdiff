@@ -21,7 +21,7 @@ from obspy.core.event import Event, Origin, Magnitude, FocalMechanism, MomentTen
 import pandas
 import glob
 import os
-#from tqdm import tqdm
+from tqdm import tqdm
 try:
     import pyasdf     # For reading asdf waveform files
 except ImportError:
@@ -75,7 +75,7 @@ def read_specfem_files(specfem_files, new_format=True):
     st = obspy.Stream()
     
     #print('Reading specfem ASCII files')
-    for f in glob.glob(specfem_files):
+    for f in tqdm(glob.glob(specfem_files)):
         filename = os.path.basename(f)
         net, sta, chan = get_net_sta_comp(filename, new_format)
         tr = read_specfem_ascii_waveform_file(ddir + '/' + filename, net, sta, chan)[0]
@@ -155,13 +155,13 @@ def save_as_sac(st, dir_name):
         tr.write(filename, format='SAC')
 
 
-def specfem_to_asdf(asdf_filename, folder, stations_file,
+def specfem_to_asdf(asdf_filename, specfem_folder, stations_file,
                     event_file, wf_tag, new_format = True):
     '''
     convert specfem files into asdf
 
     :param asdf_filename: name for asdf dataset
-    :param folder: folder containing semd files
+    :param specfem_folder: specfem_folder containing semd files
     :param stations_file: specfem stations file in pandas dataframe format
     :wf_tag: tag for waveforms in asdf dataset
     :new_format: `True` (default) for new specfem name 
@@ -195,7 +195,7 @@ def specfem_to_asdf(asdf_filename, folder, stations_file,
         return(net)
 
     
-    files = glob.glob(os.path.join(folder, "*.semd"))
+    files = glob.glob(os.path.join(specfem_folder, "*.semd"))
     assert files
 
     cat = obspy.read_events(event_file)
@@ -226,10 +226,10 @@ def specfem_to_asdf(asdf_filename, folder, stations_file,
             # Add channel info
             try:
                 if new_format is True:
-                    specfem_files = glob.glob(os.path.join(folder, s["network"] +
+                    specfem_files = glob.glob(os.path.join(specfem_folder, s["network"] +
                                                           '.' + s["station"] + '.' + '*.semd'))
                 else:
-                    specfem_files = glob.glob(os.path.join(folder + "/" + s["station"] + 
+                    specfem_files = glob.glob(os.path.join(specfem_folder + "/" + s["station"] + 
                                                           '.' + s["network"] + '.' + "*.semd"))
                 populate_channels(net, specfem_files)
             except:
@@ -239,7 +239,7 @@ def specfem_to_asdf(asdf_filename, folder, stations_file,
                     networks=[net], source=""))
 
         # Add waveforms 
-        st = read_specfem_files(os.path.join(folder, "*.semd"), 
+        st = read_specfem_files(os.path.join(specfem_folder, "*.semd"), 
                                 new_format=new_format)
         st = add_event_station_info(st, event, stations)
         ds.add_waveforms(st, tag=wf_tag, event_id=event)

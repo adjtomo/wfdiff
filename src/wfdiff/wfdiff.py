@@ -23,12 +23,20 @@ import os
 import sys
 
 import obspy
+
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pylab as plt
 from mpi4py import MPI
 import numpy as np
 
 from . import logger, misfits, processing, visualization, watermark
-from .io import read_specfem_stations_file, read_specfem_ascii_waveform_file
+from .specfem_helper import *
+
+try:
+    import pyasdf     # For reading asdf waveform files
+except ImportError:
+    pass
 
 plt.style.use("ggplot")
 
@@ -135,7 +143,7 @@ class Results(object):
             if _i["component"] == component], key=lambda x: (
             x["network"], x["station"], x["component"]))
 
-    def plot_misfits(self, thresholds, output_directory):
+    def plot_misfits(self, thresholds, output_directory, output_format = 'pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -166,10 +174,40 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_misfit_curves_component_%s.pdf" % (misfit,
-                                                           component)))
+                    "%s_misfit_curves_%s.%s" % (misfit,
+                                                           component, output_format)))
 
-    def plot_histograms(self, thresholds, output_directory):
+    def plot_misfits_hist(self, thresholds, output_directory, output_format='pdf'):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+
+        if COMM.rank == 0:
+            jobs = []
+            for misfit in self.available_misfits:
+                for component in \
+                        self.get_available_components_for_misfit(misfit):
+                    jobs.append((misfit, component))
+            jobs = split(jobs, COMM.size)
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+
+        for misfit, component in jobs:
+            visualization.plot_misfit_hist(
+                items=self.filter(misfit, component),
+                component=component,
+                pretty_misfit_name=self.__misfit_measurements[misfit][
+                    "misfit_pretty_name"],
+                filename=os.path.join(
+                    output_directory,
+                    "%s_misfit_hist_%s.%s" % (misfit,
+                                                           component, output_format)))
+
+
+    def plot_histograms(self, thresholds, output_directory, output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -198,9 +236,9 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_histogram_component_%s.pdf" % (misfit, component)))
+                    "%s_minres_histogram_%s.%s" % (misfit, component, output_format)))
 
-    def plot_maps(self, thresholds, output_directory):
+    def plot_maps(self, thresholds, output_directory, event=None, output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
@@ -229,16 +267,66 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_map_component_%s.pdf" % (misfit, component)))
+                    "%s_minres_peiord_map_%s.%s" % (misfit, component, output_format)),
+                event=event)
 
-    def plot_all(self, thresholds, output_directory):
+    def plot_misfit_maps(self, thresholds, output_directory, event=None, output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
             raise ValueError("Must specify thresholds for all available "
                              "misfits: '%s'" % self.available_misfits)
-        self.plot_misfits(thresholds, output_directory)
-        self.plot_histograms(thresholds, output_directory)
-        self.plot_maps(thresholds, output_directory)
+
+        if COMM.rank == 0:
+            jobs = []
+            for misfit in self.available_misfits:
+                for component in \
+                        self.get_available_components_for_misfit(misfit):
+                    jobs.append((misfit, component))
+            jobs = split(jobs, COMM.size)
+        else:
+            jobs = None
+
+        jobs = COMM.scatter(jobs, root=0)
+
+        for misfit, component in jobs:
+            visualization.plot_misfit_map(
+                items=self.filter(misfit, component),
+                component=component,
+                pretty_misfit_name=self.__misfit_measurements[misfit][
+                    "misfit_pretty_name"],
+                filename=os.path.join(
+                    output_directory,
+                    "%s_subplots_map_%s.%s" % (misfit, component, output_format)),
+                event=event)
+
+    def plot_all(self, thresholds, output_directory, event_file = None, 
+                 output_format='pdf'):
+        # Make sure all thresholds are available.
+        if set(thresholds.keys()) != self.available_misfits:
+            raise ValueError("Must specify thresholds for all available "
+                             "misfits: '%s'" % self.available_misfits)
+
+        # Read EVENT file if available
+        if event_file is None:
+            event = None
+        else:
+            try:
+                event = obspy.read_events(event_file)[0]
+            except:
+                try:
+                    asdf_ds = pyasdf.ASDFDataSet(event_file,
+                                                 mpi=False, mode="r")
+                    event = asdf_ds.events[0]
+                except:
+                    print('Unrecognized event file - will not plot beachball')
+                    event = None
+
+        # Plot results
+        self.plot_misfits(thresholds, output_directory, output_format = output_format)
+        self.plot_misfits_hist(thresholds, output_directory, output_format = output_format)
+        self.plot_histograms(thresholds, output_directory, output_format = output_format)
+        self.plot_maps(thresholds, output_directory, event=event, output_format = output_format)
+        self.plot_misfit_maps(thresholds, output_directory, event=event, output_format = output_format)
 
 
 class WaveformDataSet(object):
@@ -379,6 +467,7 @@ class WaveformDataSet(object):
         # Convert to upper case to be a bit defensive.
         self.dataset_low[tuple([_i.upper() for _i in net_sta_comp])] = filename
 
+
     def set_stations_dataframe(self, df):
         """
         Set the stations dataframe of the data set object.
@@ -391,12 +480,16 @@ class WaveformDataSet(object):
 
 
 class WFDiff(object):
-    def __init__(self, low_res_seismos, high_res_seismos, station_info,
+    def __init__(self, low_res_seismos, high_res_seismos, 
+                 stations_file, event_file,
                  t_min, t_max, dt,
                  data_units, desired_analysis_units,
-                 starttime=None,
-                 endtime=None, get_net_sta_comp_fct=None,
-                 is_specfem_ascii=False):
+                 rotate_RTZ = False,
+                 starttime=None, endtime=None, 
+                 new_specfem_name=True,
+                 trace_tags=['low_res','high_res'], 
+                 asdf_tags=['ngll5','ngll7'],
+                 wf_format='asdf'):
         """
 
         :param low_res_seismos: A UNIX style wildcard pattern to find the
@@ -405,9 +498,9 @@ class WFDiff(object):
         :param high_res_seismos: A UNIX style wildcard pattern to find the
             high resolution seismograms.
         :type high_res_seismos: str
-        :param station_info: A UNIX style wildcard pattern to find the
+        :param stations_file: A UNIX style wildcard pattern to find the
             station information.
-        :type station_info: str
+        :type stations_file: str
         :param t_min: The minimum period to test.
         :type t_min: float
         :param t_max: The maximum period to test.
@@ -421,21 +514,36 @@ class WFDiff(object):
             should be performed. One one of ``"displacement"``,
                 ``"velocity"``, ``"acceleration"``.
         :type desired_analysis_units: str
-        :param get_net_sta_comp_fct: A function that takes a seismogram
-            filename and returns network, station, and component of that
-            seismogram. Needed if the filename encodes that information.
-            SPECFEM recently changed their naming scheme so no default is
-            provided as it would be too dangerous to be wrong.
-        :type get_net_sta_comp_fct: function
-        :param is_specfem_ascii: If `True`, the waveform files will be
-            assumed to be the ASCII files from SPECFEM.
-        :type is_specfem_ascii: bool
+        :param new_specfem_name_format: ``True`` if files are in NET.STA.CHAN format
+             ``False`` if files are in STA.NET.CHAN (old naming convention)
+        :type new_specfem_name_format: boolean
+        :param wf_format: If `specfem`, the waveform files will be
+            assumed to be the ASCII files from SPECFEM. 
+            Other options: `asdf`
+        :type is_specfem_ascii: str
         """
         self.low_res_seismos = low_res_seismos
         self.high_res_seismos = high_res_seismos
-        self.get_net_sta_comp_fct = get_net_sta_comp_fct
+        self.new_specfem_name = new_specfem_name
         self.wf_dataset = WaveformDataSet()
-        self.is_specfem_ascii = is_specfem_ascii
+        self.wf_format = wf_format
+        self.trace_tags = trace_tags
+        self.asdf_tags = asdf_tags
+        self.bundle_jobs_by_channels = True
+        self.stations_file = stations_file
+        self.rotate_RTZ = rotate_RTZ
+
+        # Read asdf data
+        if self.wf_format is 'asdf':
+            self.asdf_low = pyasdf.ASDFDataSet(self.low_res_seismos,
+                                               mpi=False, mode="r")
+            self.asdf_high = pyasdf.ASDFDataSet(self.high_res_seismos,
+                                                mpi=False, mode="r")
+            # Make sure its the same event in
+            assert self.asdf_high.events[0] == self.asdf_low.events[0]
+            self.event = self.asdf_high.events[0]
+        elif self.wf_format is 'specfem':
+            self.event = obspy.read_events(event_file)[0]
 
         # Check units here.
         acceptable_units = ["displacement", "velocity", "acceleration"]
@@ -461,8 +569,14 @@ class WFDiff(object):
 
         if COMM.rank == 0:
             self._find_waveform_files()
-            self.wf_dataset.set_stations_dataframe(read_specfem_stations_file(
-                station_info))
+
+            # Get stations dataframe
+            if self.wf_format is 'asdf':
+                self.stations = get_stations_from_asdf(self.asdf_low)                
+            else:
+                self.stations = read_specfem_stations_file(self.stations_file)
+
+            self.wf_dataset.set_stations_dataframe(self.stations)
 
             avail_stations = self.wf_dataset.stations
             wf_s = self.wf_dataset.waveform_stations
@@ -475,8 +589,16 @@ class WFDiff(object):
                                 len(wf_s) - len(avail_stations)))
         COMM.barrier()
 
-    def run(self, misfit_types, output_directory, save_debug_plots=False):
+    def run(self, misfit_types, output_directory,
+            save_debug_plots=False, output_format='pdf'):
+
         misfit_functions = {}
+
+        if self.wf_format == 'asdf':
+            self.stations = get_stations_from_asdf(self.asdf_low)
+        else:
+            self.stations = read_specfem_stations_file(self.stations_file)
+
         # Check if all the misfit types also have corresponding functions.
         for m_type in misfit_types:
             try:
@@ -504,6 +626,7 @@ class WFDiff(object):
                     os.makedirs(debug_folder)
 
             jobs = [_i for _i in self.wf_dataset]
+
             total_length = len(jobs)
             # Collect all jobs on rank 0 and distribute.
             jobs = split(jobs, COMM.size)
@@ -511,7 +634,7 @@ class WFDiff(object):
             logger.info("Distributing %i jobs across %i cores." % (
                 total_length, COMM.size))
         else:
-            jobs = None
+            jobs = None        
 
         jobs = COMM.scatter(jobs, root=0)
 
@@ -522,113 +645,152 @@ class WFDiff(object):
             # Read the waveform traces. Fork depending on SPECFEM ASCII
             # output or not. If not data is read with ObsPy which should be
             # able to read almost anything.
-            if self.is_specfem_ascii:
-                tr_high = read_specfem_ascii_waveform_file(
-                    job.filename_high, network=job.network,
-                    station=job.station, channel=job.component)[0]
-                tr_low = read_specfem_ascii_waveform_file(
-                    job.filename_low, network=job.network, station=job.station,
-                    channel=job.component)[0]
+            if self.wf_format is 'specfem':
+                st_high = read_specfem_files(job.filename_high)
+                st_low = read_specfem_files(job.filename_low)
+            elif self.wf_format is 'asdf':
+                st_high = self.asdf_high.waveforms[ \
+                    job.network + '_' + job.station][self.asdf_tags[1]]
+                st_low = self.asdf_low.waveforms[ \
+                    job.network + '_' + job.station][self.asdf_tags[0]]
             else:
-                tr_high = obspy.read(job.filename_high)[0]
-                tr_low = obspy.read(job.filename_low)[0]
+                st_high = obspy.read(job.filename_high)[0]
+                st_low = obspy.read(job.filename_low)[0]
 
-            # Preprocess data. Afterwards they will be sampled at exactly
-            # the same points in time and have the desired units.
-            processing.preprocess_traces(
-                tr_high, tr_low,
-                starttime=self.starttime,
-                endtime=self.endtime,
-                data_units=self.data_units,
-                desired_units=self.desired_analysis_units)
+            # Rotate
+            if self.rotate_RTZ is True:
+                # Compute back_azimuth using event info and add it to trace.stats
+                # And then rotate
+                st_high = add_event_station_info(st_high, self.event, self.stations)
+                st_high.rotate('NE->RT')
+                st_low = add_event_station_info(st_low, self.event, self.stations)
+                st_low.rotate('NE->RT')
 
-            # Calculate each misfit for a range of periods.
-            collected_misfits = defaultdict(list)
+            # Sort to make sure they are in same order
+            st_high.sort()
+            st_low.sort()
+            # Loop over each trace of stream
+            for i in range(len(st_high)):
+                tr_high = st_high[i]
+                tr_low = st_low[i]
+                
+                # Make sure you are comparing same components
+                assert tr_high.stats.channel[-1] == tr_low.stats.channel[-1]
+                component = tr_high.stats.channel[-1]
+                    
+                # Preprocess data. Afterwards they will be sampled at exactly
+                # the same points in time and have the desired units.
+                processing.preprocess_traces(
+                    tr_high, tr_low,
+                    starttime=self.starttime,
+                    endtime=self.endtime,
+                    data_units=self.data_units,
+                    desired_units=self.desired_analysis_units)
 
-            if save_debug_plots:
-                plt.close()
-                plt.style.use("ggplot")
-                plt.figure(figsize=(10, len(self.periods)))
-                plt.subplot(len(self.periods) + 1, 1, 1)
-                plt.subplots_adjust(left=0.0, right=1.0, top=1.0,
-                                    bottom=0.0, wspace=0.0, hspace=0.0)
-                plt.plot(tr_high.data, color="red")
-                plt.plot(tr_low.data, color="blue")
-                plt.xticks([])
-                plt.yticks([])
+                # Calculate each misfit for a range of periods.
+                collected_misfits = defaultdict(list)
+                
+                stnm_tag =  job.network + '.' + job.station + '.' + component
+                if save_debug_plots:
+                    plt.close()
+                    plt.style.use("ggplot")
+                    plt.figure(figsize=(10, len(self.periods)))
+                    plt.subplot(len(self.periods) + 1, 1, 1)
+                    plt.subplots_adjust(left=0.0, right=1.0, top=1.0,
+                                        bottom=0.0, wspace=0.0, hspace=0.0)
+                    plt.plot(tr_high.data, color="red", label=self.trace_tags[1])
+                    plt.plot(tr_low.data, color="blue", label=self.trace_tags[0])
+                    plt.legend(fontsize=8, loc=3)
+                        # x-axis tick-marks and labels
+                    xtick_len = 20
+                    locs = np.arange(self.starttime/tr_low.stats.delta,
+                                     self.endtime/tr_low.stats.delta + 1, 
+                                     xtick_len/tr_low.stats.delta)
+                    labels = map(str, locs*tr_low.stats.delta)
+                    plt.xticks(locs)
+                    plt.yticks([])
 
-                ax = plt.gca()
-                ax.text(0.02, 0.95, "raw", transform=ax.transAxes,
-                        fontdict=dict(fontsize="small", ha='left', va='top'),
-                        bbox=dict(boxstyle="round", fc="w", alpha=0.8))
+                    ax = plt.gca()
+                    ax.text(0.02, 0.95, stnm_tag, transform=ax.transAxes,
+                            fontdict=dict(fontsize=12, ha='left', va='top'),
+                            bbox=dict(boxstyle="round", fc="w", alpha=0.8))
+                    ax.text(0.02, 0.65, "raw", transform=ax.transAxes,
+                            fontdict=dict(fontsize="small", ha='left', va='top'),
+                            bbox=dict(boxstyle="round", fc="w", alpha=0.8))
+                    
+                # Loop over various periods
+                for _i, period in enumerate(self.periods):
+                    l_tr = tr_low.copy()
+                    h_tr = tr_high.copy()
+                    l_tr.filter("lowpass", freq=1.0 / period, corners=3)
+                    h_tr.filter("lowpass", freq=1.0 / period, corners=3)
+                    
+                    this_misfits = {}
+                    
+                    # Calculate each desired misfit.
+                    for name, fct in misfit_functions.items():
+                        # Potentially returns multiple measures, e.g. CCs return
+                        # coefficient and time shift.
+                        mfs = fct(l_tr, h_tr)
+                        if isinstance(mfs, dict):
+                            mfs = [mfs]
+                        for mf in mfs:
+                            collected_misfits[mf["name"]].append(mf)
+                            this_misfits[mf["name"]] = mf["value"]
 
-            for _i, period in enumerate(self.periods):
-                l_tr = tr_low.copy()
-                h_tr = tr_high.copy()
-                l_tr.filter("lowpass", freq=1.0 / period, corners=3)
-                h_tr.filter("lowpass", freq=1.0 / period, corners=3)
-
-                this_misfits = {}
-
-                # Calculate each desired misfit.
-                for name, fct in misfit_functions.items():
-                    # Potentially returns multiple measures, e.g. CCs return
-                    # coefficient and time shift.
-                    mfs = fct(l_tr, h_tr)
-                    if isinstance(mfs, dict):
-                        mfs = [mfs]
-                    for mf in mfs:
-                        collected_misfits[mf["name"]].append(mf)
-                        this_misfits[mf["name"]] = mf["value"]
+                    if save_debug_plots:
+                        plt.subplot(len(self.periods) + 1, 1, _i + 2)
+                        plt.plot(h_tr.data, color="red")
+                        plt.plot(l_tr.data, color="blue")
+                        # x-axis label
+                        if _i ==1:
+                            plt.xticks(locs, labels)
+                            plt.tick_params(labelbottom='off',labeltop='on')
+                        else:
+                            plt.xticks(locs)
+                        plt.yticks([])
+                        ax = plt.gca()
+                        ax.text(0.02, 0.95, "Lowpass period: %.1f" % period,
+                                transform=ax.transAxes,
+                                fontdict=dict(fontsize="small", ha='left',
+                                              va='top'),
+                                bbox=dict(boxstyle="round", fc="w", alpha=0.8))
+                        keys = sorted(this_misfits.keys())
+                        txt = ["%s: %g" % (key, this_misfits[key]) for key in keys]
+                        ax.text(0.98, 0.95, "\n".join(txt),
+                                ha="right", transform=ax.transAxes,
+                                fontdict=dict(fontsize="small", ha='right',
+                                              va='top'),
+                                bbox=dict(boxstyle="round", fc="w", alpha=0.8))
 
                 if save_debug_plots:
-                    plt.subplot(len(self.periods) + 1, 1, _i + 2)
-                    plt.plot(h_tr.data, color="red")
-                    plt.plot(l_tr.data, color="blue")
-                    plt.xticks([])
-                    plt.yticks([])
-                    ax = plt.gca()
-                    ax.text(0.02, 0.95, "Lowpass period: %.1f" % period,
-                            transform=ax.transAxes,
-                            fontdict=dict(fontsize="small", ha='left',
-                                          va='top'),
-                            bbox=dict(boxstyle="round", fc="w", alpha=0.8))
-                    keys = sorted(this_misfits.keys())
-                    txt = ["%s: %g" % (key, this_misfits[key]) for key in keys]
-                    ax.text(0.98, 0.95, "\n".join(txt),
-                            ha="right", transform=ax.transAxes,
-                            fontdict=dict(fontsize="small", ha='right',
-                                          va='top'),
-                            bbox=dict(boxstyle="round", fc="w", alpha=0.8))
-
-            if save_debug_plots:
-                filename = os.path.join(
-                    debug_folder,
-                    "%s_%s_%s.pdf" % (job.network, job.station,
-                                      job.component))
-                plt.savefig(filename)
-
-            # Now assemble a frequency dependent misfit measurement for each
-            # final misfit type.
-            for key, value in collected_misfits.items():
-                r = {
-                    "network": job.network,
-                    "station": job.station,
-                    "component": job.component,
-                    "latitude": job.latitude,
-                    "longitude": job.longitude,
-                    "periods": list(self.periods),
-                    "misfit_values": [_i["value"] for _i in value],
-                    "misfit_name": value[0]["name"],
-                    "misfit_pretty_name": value[0]["pretty_name"],
-                    "misfit_logarithmic_plot": value[0]["logarithmic_plot"],
-                    "minimizing_misfit": value[0]["minimizing_misfit"]
-                }
-                results.append(r)
-
+                    filename = os.path.join(
+                        debug_folder,
+                        "%s_%s_%s.%s" % (job.network, job.station,
+                                         component, output_format))
+                    plt.savefig(filename)
+                    
+                # Now assemble a frequency dependent misfit measurement for each
+                # final misfit type.
+                for key, value in collected_misfits.items():
+                    r = {
+                        "network": job.network,
+                        "station": job.station,
+                        "component": component,
+                        "latitude": job.latitude,
+                        "longitude": job.longitude,
+                        "periods": list(self.periods),
+                        "misfit_values": [_i["value"] for _i in value],
+                        "misfit_name": value[0]["name"],
+                        "misfit_pretty_name": value[0]["pretty_name"],
+                        "misfit_logarithmic_plot": value[0]["logarithmic_plot"],
+                        "minimizing_misfit": value[0]["minimizing_misfit"]
+                        }
+                    results.append(r)
+                    
             if COMM.rank == 0:
                 logger.info(
-                    "Approximately %i of %i channels have been processed." % (
+                    "Approximately %i of %i stations have been processed." % (
                         min((jobnum + 1) * MPI.COMM_WORLD.size, total_length),
                         total_length))
 
@@ -647,28 +809,63 @@ class WFDiff(object):
 
         return results
 
+
     def _find_waveform_files(self):
         """
         Finds the waveform files for the low and high resolution seismograms.
+        This is not needed for asdf format files
         """
         low_res = glob.glob(self.low_res_seismos)
         high_res = glob.glob(self.high_res_seismos)
 
-        for filename in low_res:
-            self.wf_dataset.add_waveform_to_dataset_low(
-                self.get_net_sta_comp_fct(os.path.basename(filename)),
-                filename)
+        # For asdf input files
+        if self.wf_format is 'asdf':
+            for _, st in enumerate(self.asdf_low.waveforms):
+                for tr in st[self.asdf_tags[0]]: 
+                    net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
+                    sta_tag = net + '_' + sta
+                    filename = ''
+                    if self.bundle_jobs_by_channels is True:
+                        chan = ''
+                    self.wf_dataset.add_waveform_to_dataset_low([net, sta, chan],
+                                                                filename)
 
-        for filename in high_res:
-            self.wf_dataset.add_waveform_to_dataset_high(
-                self.get_net_sta_comp_fct(os.path.basename(filename)),
-                filename)
+            for _, st in enumerate(self.asdf_high.waveforms):
+                for tr in st[self.asdf_tags[1]]: 
+                    net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
+                    sta_tag = net + '_' + sta
+                    filename = ''
+                    if self.bundle_jobs_by_channels is True:
+                        chan = ''
+                    self.wf_dataset.add_waveform_to_dataset_high([net, sta, chan],
+                                                                filename)
+
+
+        # For specfem files
+        else:
+            for filename in low_res:
+                net, sta, chan = get_net_sta_comp(os.path.basename(filename),
+                                                  new_format=self.new_specfem_name)
+                if self.bundle_jobs_by_channels is True:
+                    fname = filename[:-8] + '*'  # replace CHA.semd by *
+                    chan = ''
+                self.wf_dataset.add_waveform_to_dataset_low(
+                    [net, sta, chan], fname)
+
+            for filename in high_res:
+                net, sta, chan = get_net_sta_comp(os.path.basename(filename),
+                                                  new_format=self.new_specfem_name)
+                if self.bundle_jobs_by_channels is True:
+                    fname = filename[:-8] + '*'  # replace CHA.semd by *
+                    chan = ''
+                self.wf_dataset.add_waveform_to_dataset_high(
+                    [net, sta, chan], fname)
 
         c_chan = self.wf_dataset.common_channels
         a_chan = self.wf_dataset.channels_only_in_high_set
         b_chan = self.wf_dataset.channels_only_in_low_set
 
-        logger.info("Found %i waveforms files that are part of both "
+        logger.info("Found %i Stations files that are part of both "
                     "data sets." % len(c_chan))
 
         # Give some additional information in case something is potentially

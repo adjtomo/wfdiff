@@ -73,7 +73,7 @@ def read_specfem_files(specfem_files, new_format=True):
     '''
     ddir = os.path.dirname(specfem_files)
     st = obspy.Stream()
-    
+
     #print('Reading specfem ASCII files')
     for f in tqdm(glob.glob(specfem_files)):
         filename = os.path.basename(f)
@@ -98,7 +98,7 @@ def get_net_sta_comp(filename, new_format=True):
         net, sta, chan, _ = filename.split(".")
     else:
         sta, net, chan, _ = filename.split(".")
-    
+
     return net, sta, chan
 
 
@@ -111,11 +111,11 @@ def add_event_station_info(st, event, stations):
     :param stations: specfem station file read as pandas
     :param st: obspy stream
     '''
-    
+
     # Read waveforms
-    for indxs, row in stations.iterrows():        
+    for indxs, row in stations.iterrows():
         sta = row['station']
-        net = row['network'] 
+        net = row['network']
         # Add backazimuth and inclination information
         _, _, baz = obspy.geodetics.base.gps2dist_azimuth(
             event.origins[0].latitude, event.origins[0].longitude,
@@ -123,7 +123,7 @@ def add_event_station_info(st, event, stations):
 
         # Select stream for this station
         try:
-            st_net_sta = st.select(network=row['network'], 
+            st_net_sta = st.select(network=row['network'],
                                    station=row['station'])
         except:
             print('No traces found for', row['network'], row['station'])
@@ -144,7 +144,7 @@ def save_as_sac(st, dir_name):
     '''
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
-    
+
     # write sac waveforms
     print("Saving waveforms in %s" % dir_name)
 
@@ -164,7 +164,7 @@ def specfem_to_asdf(asdf_filename, specfem_folder, stations_file,
     :param specfem_folder: specfem_folder containing semd files
     :param stations_file: specfem stations file in pandas dataframe format
     :wf_tag: tag for waveforms in asdf dataset
-    :new_format: `True` (default) for new specfem name 
+    :new_format: `True` (default) for new specfem name
             format NET.STA.CHA; `False` for old name STA.NET.CHA
     '''
 
@@ -172,13 +172,13 @@ def specfem_to_asdf(asdf_filename, specfem_folder, stations_file,
         # Add channel to the station xml
         for filename in list(specfem_files):
             _, _, cha, _ = os.path.basename(filename).split(".")
-            if cha[-1] is 'E':
+            if cha[-1] == 'E':
                 azimuth=90.0
                 dip=0.0
-            elif cha[-1] is 'N':
+            elif cha[-1] == 'N':
                 azimuth=0.0
                 dip=0.0
-            elif cha[-1] is 'Z':
+            elif cha[-1] == 'Z':
                 azimuth=0.0
                 dip=-90.0
 
@@ -194,7 +194,7 @@ def specfem_to_asdf(asdf_filename, specfem_folder, stations_file,
             net.stations[0].channels.append(chan)
         return(net)
 
-    
+
     files = glob.glob(os.path.join(specfem_folder, "*.semd"))
     assert files
 
@@ -229,17 +229,17 @@ def specfem_to_asdf(asdf_filename, specfem_folder, stations_file,
                     specfem_files = glob.glob(os.path.join(specfem_folder, s["network"] +
                                                           '.' + s["station"] + '.' + '*.semd'))
                 else:
-                    specfem_files = glob.glob(os.path.join(specfem_folder + "/" + s["station"] + 
+                    specfem_files = glob.glob(os.path.join(specfem_folder + "/" + s["station"] +
                                                           '.' + s["network"] + '.' + "*.semd"))
                 populate_channels(net, specfem_files)
             except:
                 print(s["network"] +'.' + s["station"] + ': waveform file absent')
-            
+
             ds.add_stationxml(obspy.core.inventory.Inventory(
                     networks=[net], source=""))
 
-        # Add waveforms 
-        st = read_specfem_files(os.path.join(specfem_folder, "*.semd"), 
+        # Add waveforms
+        st = read_specfem_files(os.path.join(specfem_folder, "*.semd"),
                                 new_format=new_format)
         st = add_event_station_info(st, event, stations)
         ds.add_waveforms(st, tag=wf_tag, event_id=event)
@@ -249,13 +249,13 @@ def get_stream_from_asdf(ds, wf_tag):
     '''
     Read asdf file and convert into obspy stream
 
-    :param ds: asdf dataset 
-    :param wf_tag: tag for the waveforms, ds.waveforms.wf_tag 
+    :param ds: asdf dataset
+    :param wf_tag: tag for the waveforms, ds.waveforms.wf_tag
             (example: synthetic, data, gll5, gll7, etc)
     '''
 
     st = obspy.Stream()
-    
+
     for sta in ds.waveforms:
         tag = 'sta.' + wf_tag
         st = st + eval(tag)
@@ -282,7 +282,7 @@ def get_stations_from_asdf(ds):
         lon.append(ds.waveforms[ds_tag].StationXML.networks[0].stations[0].longitude)
         ele.append(ds.waveforms[ds_tag].StationXML.networks[0].stations[0].elevation)
         dep.append(ds.waveforms[ds_tag].StationXML.networks[0].stations[0].channels[0].depth)
-            
+
     # Create pandas dataframe
     df = pandas.DataFrame(
         {"network": net,
@@ -292,7 +292,7 @@ def get_stations_from_asdf(ds):
          "elevation": ele,
          "depth": dep,
          })
-        
+
     return df
 
 

@@ -299,7 +299,7 @@ class Results(object):
                     "%s_subplots_map_%s.%s" % (misfit, component, output_format)),
                 event=event)
 
-    def plot_all(self, thresholds, output_directory, event_file = None, 
+    def plot_all(self, thresholds, output_directory, event_file = None,
                  output_format='pdf'):
         # Make sure all thresholds are available.
         if set(thresholds.keys()) != self.available_misfits:
@@ -480,14 +480,14 @@ class WaveformDataSet(object):
 
 
 class WFDiff(object):
-    def __init__(self, low_res_seismos, high_res_seismos, 
+    def __init__(self, low_res_seismos, high_res_seismos,
                  stations_file, event_file,
                  t_min, t_max, dt,
                  data_units, desired_analysis_units,
                  rotate_RTZ = False,
-                 starttime=None, endtime=None, 
+                 starttime=None, endtime=None,
                  new_specfem_name=True,
-                 trace_tags=['low_res','high_res'], 
+                 trace_tags=['low_res','high_res'],
                  asdf_tags=['ngll5','ngll7'],
                  wf_format='asdf'):
         """
@@ -518,7 +518,7 @@ class WFDiff(object):
              ``False`` if files are in STA.NET.CHAN (old naming convention)
         :type new_specfem_name_format: boolean
         :param wf_format: If `specfem`, the waveform files will be
-            assumed to be the ASCII files from SPECFEM. 
+            assumed to be the ASCII files from SPECFEM.
             Other options: `asdf`
         :type is_specfem_ascii: str
         """
@@ -534,7 +534,7 @@ class WFDiff(object):
         self.rotate_RTZ = rotate_RTZ
 
         # Read asdf data
-        if self.wf_format is 'asdf':
+        if self.wf_format == 'asdf':
             self.asdf_low = pyasdf.ASDFDataSet(self.low_res_seismos,
                                                mpi=False, mode="r")
             self.asdf_high = pyasdf.ASDFDataSet(self.high_res_seismos,
@@ -542,7 +542,7 @@ class WFDiff(object):
             # Make sure its the same event in
             assert self.asdf_high.events[0] == self.asdf_low.events[0]
             self.event = self.asdf_high.events[0]
-        elif self.wf_format is 'specfem':
+        elif self.wf_format == 'specfem':
             self.event = obspy.read_events(event_file)[0]
 
         # Check units here.
@@ -571,8 +571,8 @@ class WFDiff(object):
             self._find_waveform_files()
 
             # Get stations dataframe
-            if self.wf_format is 'asdf':
-                self.stations = get_stations_from_asdf(self.asdf_low)                
+            if self.wf_format == 'asdf':
+                self.stations = get_stations_from_asdf(self.asdf_low)
             else:
                 self.stations = read_specfem_stations_file(self.stations_file)
 
@@ -634,7 +634,7 @@ class WFDiff(object):
             logger.info("Distributing %i jobs across %i cores." % (
                 total_length, COMM.size))
         else:
-            jobs = None        
+            jobs = None
 
         jobs = COMM.scatter(jobs, root=0)
 
@@ -645,10 +645,10 @@ class WFDiff(object):
             # Read the waveform traces. Fork depending on SPECFEM ASCII
             # output or not. If not data is read with ObsPy which should be
             # able to read almost anything.
-            if self.wf_format is 'specfem':
+            if self.wf_format == 'specfem':
                 st_high = read_specfem_files(job.filename_high)
                 st_low = read_specfem_files(job.filename_low)
-            elif self.wf_format is 'asdf':
+            elif self.wf_format == 'asdf':
                 st_high = self.asdf_high.waveforms[ \
                     job.network + '_' + job.station][self.asdf_tags[1]]
                 st_low = self.asdf_low.waveforms[ \
@@ -673,11 +673,11 @@ class WFDiff(object):
             for i in range(len(st_high)):
                 tr_high = st_high[i]
                 tr_low = st_low[i]
-                
+
                 # Make sure you are comparing same components
                 assert tr_high.stats.channel[-1] == tr_low.stats.channel[-1]
                 component = tr_high.stats.channel[-1]
-                    
+
                 # Preprocess data. Afterwards they will be sampled at exactly
                 # the same points in time and have the desired units.
                 processing.preprocess_traces(
@@ -689,7 +689,7 @@ class WFDiff(object):
 
                 # Calculate each misfit for a range of periods.
                 collected_misfits = defaultdict(list)
-                
+
                 stnm_tag =  job.network + '.' + job.station + '.' + component
                 if save_debug_plots:
                     plt.close()
@@ -704,7 +704,7 @@ class WFDiff(object):
                         # x-axis tick-marks and labels
                     xtick_len = 20
                     locs = np.arange(self.starttime/tr_low.stats.delta,
-                                     self.endtime/tr_low.stats.delta + 1, 
+                                     self.endtime/tr_low.stats.delta + 1,
                                      xtick_len/tr_low.stats.delta)
                     labels = map(str, locs*tr_low.stats.delta)
                     plt.xticks(locs)
@@ -717,16 +717,16 @@ class WFDiff(object):
                     ax.text(0.02, 0.65, "raw", transform=ax.transAxes,
                             fontdict=dict(fontsize="small", ha='left', va='top'),
                             bbox=dict(boxstyle="round", fc="w", alpha=0.8))
-                    
+
                 # Loop over various periods
                 for _i, period in enumerate(self.periods):
                     l_tr = tr_low.copy()
                     h_tr = tr_high.copy()
                     l_tr.filter("lowpass", freq=1.0 / period, corners=3)
                     h_tr.filter("lowpass", freq=1.0 / period, corners=3)
-                    
+
                     this_misfits = {}
-                    
+
                     # Calculate each desired misfit.
                     for name, fct in misfit_functions.items():
                         # Potentially returns multiple measures, e.g. CCs return
@@ -769,7 +769,7 @@ class WFDiff(object):
                         "%s_%s_%s.%s" % (job.network, job.station,
                                          component, output_format))
                     plt.savefig(filename)
-                    
+
                 # Now assemble a frequency dependent misfit measurement for each
                 # final misfit type.
                 for key, value in collected_misfits.items():
@@ -787,7 +787,7 @@ class WFDiff(object):
                         "minimizing_misfit": value[0]["minimizing_misfit"]
                         }
                     results.append(r)
-                    
+
             if COMM.rank == 0:
                 logger.info(
                     "Approximately %i of %i stations have been processed." % (
@@ -819,9 +819,9 @@ class WFDiff(object):
         high_res = glob.glob(self.high_res_seismos)
 
         # For asdf input files
-        if self.wf_format is 'asdf':
+        if self.wf_format == 'asdf':
             for _, st in enumerate(self.asdf_low.waveforms):
-                for tr in st[self.asdf_tags[0]]: 
+                for tr in st[self.asdf_tags[0]]:
                     net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
                     sta_tag = net + '_' + sta
                     filename = ''
@@ -831,7 +831,7 @@ class WFDiff(object):
                                                                 filename)
 
             for _, st in enumerate(self.asdf_high.waveforms):
-                for tr in st[self.asdf_tags[1]]: 
+                for tr in st[self.asdf_tags[1]]:
                     net, sta, chan = tr.stats.network, tr.stats.station, tr.stats.channel[-1]
                     sta_tag = net + '_' + sta
                     filename = ''

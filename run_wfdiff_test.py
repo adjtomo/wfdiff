@@ -28,10 +28,10 @@ wf_format = None          # these could be sac, specfem, asdf or any other obspy
 trace_tags = None         # tags for low_res_seismos and high_res_seismos
 
 
-iex = 0
+iex = 1
 # 0: Default example
 
-elif iex == 0:
+if iex == 0:
     # Use asdf file instead (Nenana example)
     low_res_seismos="./test_data/nenana_gll5.h5"
     high_res_seismos="./test_data/nenana_gll7.h5"
@@ -52,7 +52,7 @@ if iex == 1:
     output_directory = "output_test"
     output_format = 'pdf' # or ps, eps etc.
 
-elif iex == 2: 
+elif iex == 2:
     # Test using sac data (using ENZ components) - Same as the Example 1
     # Run specfem_util_test.py first to create rotate SAC file for NGLL5 and NGLL7 case
     # test (using ENZ components) - Same as the Example 1
@@ -76,8 +76,8 @@ elif iex == 3:
 
 elif iex == 4:
     # Use asdf file instead (Nenana example)
-    # See pyasdf_example.py for creating an asdf file from specfem output files 
-    # 
+    # See pyasdf_example.py for creating an asdf file from specfem output files
+    #
     #low_res_seismos="/store/homeglut/carltape/OUTPUT_SPECFEM3D/alaska/nenana/OUTPUT_FILES_nenana_NGLL5/*.semd"
     #high_res_seismos="/store/homeglut/carltape/OUTPUT_SPECFEM3D/alaska/nenana/OUTPUT_FILES_nenana_NGLL7/*.semd"
     #stations_file = '/store/homeglut/carltape/OUTPUT_SPECFEM3D/alaska/nenana/OUTPUT_FILES_nenana_NGLL5/STATIONS_FILTERED'
@@ -94,7 +94,7 @@ elif iex == 4:
 
 # Configuration.
 c = WFDiff(
-    low_res_seismos=low_res_seismos, high_res_seismos=high_res_seismos, 
+    low_res_seismos=low_res_seismos, high_res_seismos=high_res_seismos,
     stations_file=stations_file, event_file=event_file,
     # Specify the units of the data and the units the analysis should take
     # place in.
@@ -110,8 +110,8 @@ c = WFDiff(
     # Tags printed on the plots
     trace_tags=trace_tags,
     # asdf dataset tags
-    asdf_tags=asdf_tags,
-    # Set to 'specfem' if waveform ASCII files are used. 
+    # asdf_tags=asdf_tags,
+    # Set to 'specfem' if waveform ASCII files are used.
     # Set to 'asdf' if asdf waveform file
     # All other fileformat should otherwise work just fine.
     wf_format=wf_format)

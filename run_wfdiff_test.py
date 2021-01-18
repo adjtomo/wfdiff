@@ -27,70 +27,16 @@ high_res_seismos = None   # high resolution files
 wf_format = None          # these could be sac, specfem, asdf or any other obspy suppported format
 trace_tags = None         # tags for low_res_seismos and high_res_seismos
 
+# test data (using ENZ components)
+low_res_seismos="./test_data/NGLL5/*semd"
+high_res_seismos="./test_data/NGLL7/*semd"
+stations_file="./test_data/STATIONS"
+event_file='./test_data/CMTSOLUTION'
+trace_tags = ['NGLL5','NGLL7']
+wf_format = 'specfem'
+output_directory = "output_test"
+output_format = 'pdf' # or ps, eps etc.
 
-iex = 1
-# 0: Default example
-
-if iex == 0:
-    # Use asdf file instead (Nenana example)
-    low_res_seismos="./test_data/nenana_gll5.h5"
-    high_res_seismos="./test_data/nenana_gll7.h5"
-    wf_format = 'asdf'
-    trace_tags = ['gll5','gll7']  # for waveform debug plots
-    asdf_tags = ['gll5','gll7']
-    output_directory = "output_test"
-    output_format = 'pdf' # or ps, eps etc.
-
-if iex == 1:
-    # test data (using ENZ components)
-    low_res_seismos="./test_data/NGLL5/*semd"
-    high_res_seismos="./test_data/NGLL7/*semd"
-    stations_file="./test_data/STATIONS"
-    event_file='./test_data/CMTSOLUTION'
-    trace_tags = ['NGLL5','NGLL7']
-    wf_format = 'specfem'
-    output_directory = "output_test"
-    output_format = 'pdf' # or ps, eps etc.
-
-elif iex == 2:
-    # Test using sac data (using ENZ components) - Same as the Example 1
-    # Run specfem_util_test.py first to create rotate SAC file for NGLL5 and NGLL7 case
-    # test (using ENZ components) - Same as the Example 1
-    low_res_seismos="./20140831030657110_NGLL5_ENZ/*sac"
-    high_res_seismos="./20140831030657110_NGLL7_ENZ/*sac"
-    trace_tags = ['NGLL5-ENZ','NGLL7-ENZ']
-    wf_format = 'sac'
-    output_directory = "output_test"
-    output_format = 'pdf' # or ps, eps etc.
-
-elif iex == 3:
-    # Test using sac data (using RTZ components)
-    # Run specfem_util_test.py first to create rotate SAC file for NGLL5 and NGLL7 case
-    low_res_seismos="./20140831030657110_NGLL5_RTZ/*sac"
-    high_res_seismos="./20140831030657110_NGLL7_RTZ/*sac"
-    stations_file="./test_data/STATIONS"
-    trace_tags = ['NGLL5-RTZ','NGLL7-RTZ']
-    wf_format = 'sac'
-    output_directory = "output_test"
-    output_format = 'pdf' # or ps, eps etc.
-
-elif iex == 4:
-    # Use asdf file instead (Nenana example)
-    # See pyasdf_example.py for creating an asdf file from specfem output files
-    #
-    #low_res_seismos="/store/homeglut/carltape/OUTPUT_SPECFEM3D/alaska/nenana/OUTPUT_FILES_nenana_NGLL5/*.semd"
-    #high_res_seismos="/store/homeglut/carltape/OUTPUT_SPECFEM3D/alaska/nenana/OUTPUT_FILES_nenana_NGLL7/*.semd"
-    #stations_file = '/store/homeglut/carltape/OUTPUT_SPECFEM3D/alaska/nenana/OUTPUT_FILES_nenana_NGLL5/STATIONS_FILTERED'
-    #event_file = '/store/homeglut/carltape/OUTPUT_SPECFEM3D/alaska/nenana/OUTPUT_FILES_nenana_NGLL5/CMTSOLUTION'
-    #wf_format = 'specfem'
-    low_res_seismos="./nenana_gll5.h5"
-    high_res_seismos="./nenana_gll7.h5"
-    wf_format = 'asdf'
-    trace_tags = ['gll5','gll7']  # for waveform debug plots
-    asdf_tags = ['gll5','gll7']
-    output_directory = "output_test"
-    output_format = 'pdf' # or ps, eps etc.
-#--------------------------------------------------------------------------------
 
 # Configuration.
 c = WFDiff(

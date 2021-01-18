@@ -1,13 +1,13 @@
-XXXX 2014  8 31  3 06 57.11  65.1526 -149.0398  12.0 5.0 5.0 northwest
-event name: 20140831030657111
+XXXX 2016  1 24 10 30 37.40  59.6000 -151.3000  110.7 7.1 7.1 Iniskin
+event name: C201601241030A
 time shift:      0.0000
 half duration:   0.0000
-latitude:       65.1526
-longitude:    -149.0398
-depth:          12.0000
-Mrr:      -9.498666e+22
-Mtt:      -2.036680e+23
-Mpp:       2.986546e+23
-Mrt:       1.395739e+23
-Mrp:       1.353540e+23
-Mtp:      -2.254440e+23
+latitude:          59.6
+longitude:       -151.3
+depth:         110.7000
+Mrr:       2.390000e+26
+Mtt:       1.873215e+26
+Mpp:      -4.263215e+26
+Mrt:       3.058377e+26
+Mrp:       8.027348e+25
+Mtp:       3.384303e+26

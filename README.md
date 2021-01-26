@@ -73,7 +73,7 @@ $ cd wfdiff
 $ pip install -v -e .
 ```
 ## Running wfdiff
-To run it, run the `run_wfdiff_test.py` with
+To run the code, run the `run_wfdiff_test.py` with
 ```
 $ python run_wfdiff_test.py
 ```

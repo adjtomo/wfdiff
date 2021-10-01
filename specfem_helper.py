@@ -23,6 +23,8 @@ st = sh.read_specfem_files(specfem_wf)
 
 # Add backazimuth. Needed for rotation
 st = sh.add_event_station_info(st, event, stn)
+# Add sac metadata
+st = sh.add_event_station_sac_header(st, event, stn)
 st.resample(50)
 # Rotate to RTZ
 print('---> Rotating to RTZ')

@@ -45,7 +45,7 @@ Then create a new environment. You don’t have to, but using a new environment 
  and the remaining dependencies with
  
  ```
- $ conda install basemap pandas flake8 pytest nose mpi4py tqdm
+ $ conda install basemap pandas flake8 pytest nose mpi4py tqdm pyasdf
  $ conda install -c conda-forge basemap-data-hires
  ```
 ---

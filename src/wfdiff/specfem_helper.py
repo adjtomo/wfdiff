@@ -134,6 +134,38 @@ def add_event_station_info(st, event, stations):
 
     return(st)
 
+def add_event_station_sac_header(st, event, stations):
+    '''
+    Add sac header information to traces.
+
+    :param event: event object
+    :param stations: specfem station file read as pandas
+    :param st: obspy stream
+    '''
+
+    # Read waveforms
+    for indxs, row in stations.iterrows():
+        sta = row['station']
+        net = row['network']
+
+        # Select stream for this station
+        try:
+            st_net_sta = st.select(network=row['network'],
+                                   station=row['station'])
+        except:
+            print('No traces found for', row['network'], row['station'])
+
+        for tr in st_net_sta:
+            sac_header = {
+            'evla' : event.origins[0].latitude,
+            'evlo' : event.origins[0].longitude,
+            'stla' : row['latitude'],
+            'stlo' : row['longitude']
+            }
+            tr.stats.sac = sac_header
+
+    return(st)
+
 
 def save_as_sac(st, dir_name):
     '''

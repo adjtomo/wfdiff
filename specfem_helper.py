@@ -32,10 +32,10 @@ st.rotate('NE->RT')
 RTZ_dir = eid +'_RTZ'
 sh.save_as_sac(st, RTZ_dir)
 
-files = os.listdir()
-for file in files:
-    a = file[:-4]
-    b = a[-1]
-    c = 'Mtt'
-    print(a[:-3]+'.'+b+'.'+c+'.sac')
-    shutil.move(file, a[:-3]+'.'+b+'.'+c+'.sac')
+#files = os.listdir()
+#for file in files:
+#    a = file[:-4]
+#    b = a[-1]
+#    c = 'Mtt'
+#    print(a[:-3]+'.'+b+'.'+c+'.sac')
+#    shutil.move(file, a[:-3]+'.'+b+'.'+c+'.sac')

@@ -34,6 +34,7 @@ st.rotate('NE->RT')
 RTZ_dir = eid +'_RTZ'
 sh.save_as_sac(st, RTZ_dir)
 
+#TODO:Check this part of code to decide if keep or delete it
 #files = os.listdir()
 #for file in files:
 #    a = file[:-4]

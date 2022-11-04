@@ -4,7 +4,7 @@ Disclaimer: The current of the code is modified from a previous version by [Lion
 
 The code is functional with Python version 3.6 and up, but the test suite is currently broken.
 
-One of the plot capacities is currently provided by the Basemap module, which reached its EoL in 2020.  Although this does not prevent the code from being used with the python 3.8 version, compatibility may not be ensured with future versions.
+Map plots are now handled by the [Cartopy](https://scitools.org.uk/cartopy/docs/latest/) module, which replaces the previous Basemap module that has reached its EOS in 2020.
 
 I would like to re-emphasize the original author's warning:
 >***:warning: This package is work in progress and NOT YET READY FOR PRODUCTIVE USE.***:

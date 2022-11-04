@@ -5,6 +5,7 @@ Visualization functions for wfdiff.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2014
+    Julien Thurin (jthurin@alaska.edu), 2022 - Cartopy implementation
 :license:
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)
@@ -15,12 +16,12 @@ from future.builtins import *  # NOQA
 
 import matplotlib.cm
 import matplotlib.pylab as plt
-from mpl_toolkits.basemap import Basemap
 import numpy as np
 import sys
 
 from obspy.imaging.beachball import beach
 from obspy.geodetics import gps2dist_azimuth
+from cartopy import crs as ccrs
 
 from .utils import rightmost_threshold_crossing
 
@@ -174,7 +175,7 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
                     lat_mean) 
 
-    x, y = m(longitudes, latitudes)
+    x, y, _ = m.projection.transform_points(ccrs.PlateCarree(), np.asanyarray(longitudes), np.asanyarray(latitudes)).T
 
     data = m.scatter(x, y, c=resolvable_periods, s=30, vmin=period_range[0],
                      vmax=period_range[-1], cmap=cm, alpha=0.9, zorder=10)
@@ -194,12 +195,13 @@ def plot_map(items, threshold, threshold_is_upper_limit,
         tensor  = event.focal_mechanisms[0].moment_tensor.tensor
         ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
                  tensor.m_rt, tensor.m_rp, tensor.m_tp]
-        ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+        # ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+        ex, ey, _ = m.projection.transform_points(ccrs.PlateCarree(), np.asarray(event.origins[0].longitude),np.asarray(event.origins[0].latitude)).T
         b = beach(ev_mt, xy=(ex, ey), width=int(5000*event.magnitudes[0].mag), 
                   linewidth=0.5, facecolor='deepskyblue')
         ax.add_collection(b)
 
-    cbar = m.colorbar(data, location="right", pad="15%")
+    cbar = plt.colorbar(data, location="right", pad=0.05)
     cbar.set_label("Minimum Resolvable Period [s]")
 
     plt.title("%s minimum resolvable period for component %s" % (
@@ -231,7 +233,8 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
 
     m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
                     lat_mean) 
-    x, y = m(longitudes, latitudes)
+    x, y, _ = m.projection.transform_points(ccrs.PlateCarree(), np.asanyarray(longitudes), np.asanyarray(latitudes)).T
+    plt.close()
 
     misfit_all= np.asarray(misfit_all)
 
@@ -239,19 +242,21 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
     ncols = 4
     bins_range = (misfit_all.min(), misfit_all.max())
 
-    fig = plt.figure(figsize=(3*ncols, 3*nrows))
-
+    fig,axes = plt.subplots(ncols=ncols,nrows=nrows,figsize=(3*ncols, 3*nrows),
+                      subplot_kw={'projection': m.projection},gridspec_kw = {'wspace':0.2, 'hspace':0.2})
+    axes = axes.flatten()
     # Get beachball info
     if event is not None:
         tensor  = event.focal_mechanisms[0].moment_tensor.tensor
         ev_mt = [tensor.m_rr, tensor.m_tt, tensor.m_pp,
                  tensor.m_rt, tensor.m_rp, tensor.m_tp]
-        ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+        # ex, ey = m(event.origins[0].longitude, event.origins[0].latitude)
+        ex, ey, _ = m.projection.transform_points(ccrs.PlateCarree(), np.asarray(event.origins[0].longitude),np.asarray(event.origins[0].latitude)).T
 
     for i in range(len(items[0]["periods"])):
-        ax = fig.add_subplot(nrows, ncols, i+1)
+        ax = axes[i]
         m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
-                        lat_mean, stepsize=4, resolution='c')
+                        lat_mean, stepsize=4, resolution='110m', ax=ax)
         data = m.scatter(x, y, c=misfit_all[:,i], s=30, vmin=misfit_all.min(),
                          vmax=misfit_all.max(), cmap=cm, alpha=0.9, zorder=10)
         # Add beachball
@@ -259,129 +264,148 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
             b = beach(ev_mt, xy=(ex, ey), width=int(8000*event.magnitudes[0].mag), 
                       linewidth=.5, facecolor='deepskyblue')
             ax.add_collection(b)
-        # Add colorbar for the last subplot
-        #if i == (len(items[0]["periods"]) -1):
-        #    divider = make_axes_locatable(ax)
-        #    cax = divider.append_axes("right", size="5%", pad=0.05)
-        #    cbar = m.colorbar(data, location="right", pad="15%", shrink=0.75)
-        #    cbar.set_label(pretty_misfit_name)
 
-        ax.set_title('t > ' + str(items[0]["periods"][i]) + ' s', fontsize=12)
+        ax.set_title(f't > {items[0]["periods"][i]:3.1f} s', fontsize=12)
+        ax.set_aspect('equal')
 
-    fig.subplots_adjust(right=0.85)
+    # Remove unused axes starting from index i
+    for j in range(i+1, len(axes)):
+        axes[j].remove()
+
+
+    fig.subplots_adjust(right=0.85, top=0.90, bottom=0.05, left=0.05)
     cbar_ax = fig.add_axes([0.9, 0.1, 0.01, 0.85])
     fig.colorbar(data, cax=cbar_ax)
-    fig.tight_layout(rect=[0.08, 0.03, 0.9, 0.9])
 
     fig.suptitle("%s distribution for component %s" % (
             pretty_misfit_name, component))
     
     fig.savefig(filename)
 
-
 def get_basemap(longitudinal_extent, latitudinal_extent, center_longitude,
                 center_latitude, stepsize = None, resolution = None, ax=None):
     """
-    Helper function attempting to automatically choose a good map projection.
+    Helper function to automatically choose a good map projection with cartopy
 
-    Likely not perfect.
     """
-    if ax is None:
-        ax = plt.gca()
-
+    # if stepsize is None:
+    #     stepsize = 10
+    # if resolution is None:
+    #     resolution = '110m'
+        
     max_extent = max(longitudinal_extent, latitudinal_extent)
 
-    # Use a global plot for very large domains.
-    if max_extent >= 180.0:
-        m = Basemap(projection='moll', lon_0=0, resolution="c", ax=ax)
-        stepsize = 45.0
-    # Orthographic projection for 75.0 <= extent < 180.0
-    elif max_extent >= 75.0:
-        m = Basemap(projection="ortho", lon_0=center_longitude,
-                    lat_0=center_latitude, resolution="c", ax=ax)
-        stepsize = 10.0
-    # Lambert azimuthal equal area projection. Equal area projections
-    # are useful for interpreting features and this particular one also
-    # does not distort features a lot on regional scales.
+    # Set up the projection
+    if max_extent > 180:
+        projection = ccrs.Mollweide(central_longitude=center_longitude)
+        if ax is None:
+            ax = plt.axes(projection=projection)
+        else:
+            ax.projection = projection
+        stepsize = 10
+        resolution = '110m'
+        ax.set_global()
+
+    elif max_extent > 75:
+        projection = ccrs.Orthographic(central_longitude=center_longitude,
+                                       central_latitude=center_latitude)
+        if ax is None:
+            ax = plt.axes(projection=projection)
+        else:
+            ax.projection = projection
+        stepsize = 10
+        resolution = '110m'
+
     else:
-        # Calculate map region 
-        lat_min = center_latitude - (latitudinal_extent / 2.0)
-        lat_max = center_latitude + (latitudinal_extent / 2.0)
-        lon_min = center_longitude - (longitudinal_extent / 2.0)
-        lon_max = center_longitude + (longitudinal_extent / 2.0)
-      
-        # Try to pick suitable tick-marks increment and resolution
-        # on the basis of size of map region
-        if stepsize is None or resolution is None:
-            if longitudinal_extent > 50.0:
-                stepsize = 10.0
-                resolution = "i"
-            elif 20.0 < longitudinal_extent <= 50.0:
-                stepsize = 5.0
-                resolution = "i"
-            elif 5.0 < longitudinal_extent <= 20.0:
-                stepsize = 2.0
-                resolution = "i"
-            elif 2.0 < longitudinal_extent < 5.0:
-                stepsize = 1.0
-                resolution = "h"
-            else:
+        projection = ccrs.LambertAzimuthalEqualArea(central_longitude=center_longitude,
+                                                    central_latitude=center_latitude)
+
+        # Calculate map region boundaries
+        lat_min = center_latitude - latitudinal_extent / 2
+        lat_max = center_latitude + latitudinal_extent / 2
+        lon_min = center_longitude - longitudinal_extent / 2
+        lon_max = center_longitude + longitudinal_extent / 2
+        # Define best resolution and stepsize for the map given region size
+        
+        if longitudinal_extent > 60:
+            if resolution == None:
+                resolution = '110m'
+            if stepsize == None:
+                stepsize = 10
+        elif longitudinal_extent > 30:
+            if resolution == None:
+               resolution = '50m'
+            if stepsize == None:
+                stepsize = 5
+        elif longitudinal_extent > 10:
+            if resolution == None:
+                resolution = '50m'
+            if stepsize == None:
+                stepsize = 5
+        elif longitudinal_extent > 5:
+            if resolution == None:
+                resolution = '50m'
+            if stepsize == None:
+                stepsize = 2
+        elif longitudinal_extent > 2:
+            if resolution == None:
+                resolution = '50m'
+            if stepsize == None:
+                stepsize = 1
+        elif longitudinal_extent > 1:
+            if resolution == None:
+                resolution = '50m'
+            if stepsize == None:
                 stepsize = 0.5
-                resolution = "h"
         
         # Change map dimensions from degree to meters
-        width, _, _  = gps2dist_azimuth(center_latitude, lon_min, center_latitude, lon_max) 
-        height, _, _ = gps2dist_azimuth(lat_min, center_longitude, lat_max, center_longitude) 
+        lon_min, lat_min = projection.transform_point(lon_min, lat_min,
+                                                    ccrs.PlateCarree())
+        lon_max, lat_max = projection.transform_point(lon_max, lat_max,
+                                                    ccrs.PlateCarree())
         # add little extra margin around the map
         map_margin = 100000
-        width += map_margin
-        height += map_margin
-       
-        m = Basemap(projection='laea', resolution=resolution, width=width,
-                    height=height, lat_ts=center_latitude, lat_0=center_latitude,
-                    lon_0=center_longitude, ax=ax)
+        lat_min -= map_margin
+        lat_max += map_margin
+        lon_min -= map_margin
+        lon_max += map_margin
 
-    _plot_features(m, stepsize)
-    return m
+        # Set up the map
+        if ax is None:
+            ax = plt.axes(projection=projection)
+        else:
+            ax.projection = projection
+        ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=projection)
+    
+    _plot_feature(ax, stepsize, resolution)
+    
+    return ax
 
-
-def _plot_features(map_object, stepsize):
+def _plot_feature(ax, stepsize, resolution,**kwargs):
     """
-    Helper function aiding in consistent plot styling.
+    Helper function to plot cartopy features
+
     """
     import matplotlib.pyplot as plt
+    import cartopy.feature as cfeature
+    # Add grey ocean features
+    ax.add_feature(cfeature.OCEAN.with_scale(resolution), facecolor='0.9', edgecolor='0.9')
+    # Add grey continents features  
+    ax.add_feature(cfeature.LAND.with_scale(resolution),facecolor='0.8', edgecolor='0.8')
+    # Add light blue lakes features
+    ax.add_feature(cfeature.LAKES.with_scale(resolution), facecolor='0.9', edgecolor='0.9')
 
-    map_object.drawmapboundary(fill_color='#bbbbbb')
-    map_object.fillcontinents(color='white', lake_color='#cccccc', zorder=0)
-    plt.gcf().patch.set_alpha(0.0)
-
-    # Style for parallels and meridians.
-    LINESTYLE = {
-        "linewidth": 0.5,
-        "dashes": [],
-        "color": "#999999"}
-
-    # Parallels.
-    if map_object.projection in ["moll", "laea"]:
-        label = True
+    ax.add_feature(cfeature.COASTLINE.with_scale(resolution), linewidth=0.3)
+    ax.add_feature(cfeature.BORDERS.with_scale(resolution), linewidth=0.3)
+    ax.add_feature(cfeature.RIVERS.with_scale(resolution), linewidth=0.3, edgecolor='0.9')
+    if ax.projection.srs.split()[0].split('=')[1] == 'laea':
+        gls = ax.gridlines(xlocs=np.arange(-180, 180, stepsize),
+                        ylocs=np.arange(-90, 90, stepsize), draw_labels=True, rotate_labels=False, x_inline=False, y_inline=False, **kwargs)
+        gls.top_labels = False
+        gls.right_labels = False
+        gls.xlabel_style = {'size': 8, 'color': 'black'}
+        gls.ylabel_style = {'size': 8, 'color': 'black'}
     else:
-        label = False
-    parallels = np.arange(-90.0, 90.0, stepsize)
-    map_object.drawparallels(parallels, labels=[label, False, False, False],
-                             zorder=200, **LINESTYLE)
-    # Meridians.
-    if map_object.projection in ["laea"]:
-        label = True
-    else:
-        label = False
-    meridians = np.arange(0.0, 360.0, stepsize)
-    map_object.drawmeridians(
-        meridians, labels=[False, False, False, label], zorder=200,
-        **LINESTYLE)
-
-    map_object.drawcoastlines(color="#444444", linewidth=0.7)
-    map_object.drawcountries(linewidth=0.4, color="#777777")
-    if stepsize < 10.0:
-        map_object.drawstates(linewidth=0.2, color="#999999")
-        map_object.drawrivers(linewidth=0.1, color="#888888",
-                              linestyle="solid")
+        gls = ax.gridlines(xlocs=np.arange(-180, 180, stepsize),
+                ylocs=np.arange(-90, 90, stepsize), draw_labels=False, **kwargs)
+    

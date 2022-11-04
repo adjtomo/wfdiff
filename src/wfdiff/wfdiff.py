@@ -5,6 +5,7 @@ Main wfdiff interfaces.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2015
+    Julien Thurin (jthurin@alaska.edu), 2022 - Cartopy implementation
 :license:
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)

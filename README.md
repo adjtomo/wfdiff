@@ -1,6 +1,6 @@
 # wfdiff
 
-Disclaimer: The current of the code is modified from a previous version by [Lion Krischer](https://github.com/krischer).
+Disclaimer: This utility code was written in Matlab by [Carl Tape](https://github.com/carltape) and [Vipul Silwal](https://github.com/vsilwal), then rewritten in Python by Lion Krischer [Lion Krischer](https://github.com/krischer) (2015) then upgraded by [Julien Thurin](https://github.com/thurinj) (2022). 
 
 The code is functional with Python version 3.6 and up, but the test suite is currently broken.
 

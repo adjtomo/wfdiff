@@ -95,13 +95,13 @@ def preprocess_traces(tr_a, tr_b, data_units, desired_units, starttime=None,
         else:
             st.integrate()
 
-    if starttime is not None:
-        starttime = st[0].stats.starttime + starttime
-    if endtime is not None:
-        endtime = st[0].stats.starttime + endtime
-    st.trim(starttime=starttime, endtime=endtime)
-
     # Detrend, demean, taper to stabilize the filters that will follow.
     st.detrend("demean")
     st.detrend("linear")
     st.taper(type="hann", max_percentage=0.03)
+
+    if starttime is not None:
+        starttime = st[0].stats.starttime + starttime
+    if endtime is not None:
+        endtime = st[0].stats.starttime + endtime
+    st.trim(starttime=starttime, endtime=endtime, pad=True, fill_value=0)

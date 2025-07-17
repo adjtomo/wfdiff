@@ -517,6 +517,16 @@ class WFDiff(object):
             should be performed. One one of ``"displacement"``,
                 ``"velocity"``, ``"acceleration"``.
         :type desired_analysis_units: str
+        :param f_min: The minimum frequency for visulization.
+            Default: 0.1 Hz
+        :type f_min: float
+        :param f_max: The maximum frequency for visulization.
+            Default: 10.0 Hz
+        :type f_max: float
+                :param starttime: The start time of the analysis.
+        :type starttime: :class:`obspy.UTCDateTime`
+        :param endtime: The end time of the analysis.           
+        :type endtime: :class:`obspy.UTCDateTime`
         :param new_specfem_name_format: ``True`` if files are in NET.STA.CHAN format
              ``False`` if files are in STA.NET.CHAN (old naming convention)
         :type new_specfem_name_format: boolean
@@ -824,6 +834,7 @@ class WFDiff(object):
 
                 if save_debug_plots:
                     def logsmooth(x, y, n_bins=1000):
+                        # This function apply log scale smoothing in the frequency domain
                         pos_mask = x > 0
                         if not np.any(pos_mask):
                             return np.array([]), np.array([])
@@ -847,7 +858,6 @@ class WFDiff(object):
                     ax_spec.plot(smooth_freq_high, smooth_amp_high, color="red", label=self.trace_tags[1])
                     ax_spec.plot(smooth_freq_low, smooth_amp_low, color="blue", label=self.trace_tags[0])
                     ax_spec.set_xscale('log')
-                    #ax_spec.set_yscale('log')
                     ax_spec.set_xlim(self.f_min, self.f_max)
                     ax_spec.set_title("Amplitude Spectrum", fontsize=14)
                     ax_spec.set_xlabel("Frequency (Hz)", fontsize=12)
@@ -863,8 +873,6 @@ class WFDiff(object):
                     if np.any(mask_high) and np.any(mask_low):
                         min_val = min(np.min(smooth_amp_high[mask_high]), np.min(smooth_amp_low[mask_low]))
                         max_val = max(np.max(smooth_amp_high[mask_high]), np.max(smooth_amp_low[mask_low]))
-                        # if min_val > 0 and max_val > min_val:
-                        #     ax_spec.set_ylim(min_val * 0.5, max_val * 2)
 
                     # Plot 2: Smoothed Spectrum Difference
                     ax_diff = plt.subplot(total_subplots, 1, 1 + num_period_plots + 2)
@@ -884,8 +892,6 @@ class WFDiff(object):
                     if np.any(mask_diff):
                         min_val_diff = np.min(smooth_spec_diff[mask_diff])
                         max_val_diff = np.max(smooth_spec_diff[mask_diff])
-                        # if min_val_diff > 0 and max_val_diff > min_val_diff:
-                        #     ax_diff.set_ylim(min_val_diff * 0.5, max_val_diff * 2)
 
                     # Plot 3: Cumulative RMS
                     ax_rms = plt.subplot(total_subplots, 1, 1 + num_period_plots + 3)

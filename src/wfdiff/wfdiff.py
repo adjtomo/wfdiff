@@ -21,6 +21,7 @@ import copy
 import glob
 import json
 import os
+import shutil
 import sys
 
 import obspy
@@ -485,6 +486,7 @@ class WFDiff(object):
                  stations_file, event_file,
                  t_min, t_max, dt,
                  data_units, desired_analysis_units,
+                 f_min=0.1, f_max=10.0,
                  rotate_RTZ = False,
                  starttime=None, endtime=None,
                  new_specfem_name=True,
@@ -515,6 +517,16 @@ class WFDiff(object):
             should be performed. One one of ``"displacement"``,
                 ``"velocity"``, ``"acceleration"``.
         :type desired_analysis_units: str
+        :param f_min: The minimum frequency for visulization.
+            Default: 0.1 Hz
+        :type f_min: float
+        :param f_max: The maximum frequency for visulization.
+            Default: 10.0 Hz
+        :type f_max: float
+                :param starttime: The start time of the analysis.
+        :type starttime: :class:`obspy.UTCDateTime`
+        :param endtime: The end time of the analysis.           
+        :type endtime: :class:`obspy.UTCDateTime`
         :param new_specfem_name_format: ``True`` if files are in NET.STA.CHAN format
              ``False`` if files are in STA.NET.CHAN (old naming convention)
         :type new_specfem_name_format: boolean
@@ -563,10 +575,13 @@ class WFDiff(object):
 
         self.starttime = starttime
         self.endtime = endtime
+        self.f_min = f_min
+        self.f_max = f_max
 
         # Get a list of frequencies to test. Make sure t_max is included.
         assert t_min < t_max
-        self.periods = np.arange(t_min, t_max + dt * 0.1, dt)
+        #self.periods = np.arange(t_min, t_max + dt * 0.1, dt)
+        self.periods = 1/np.logspace(np.log10(1/t_min),np.log10(1/t_max),  6)
 
         if COMM.rank == 0:
             self._find_waveform_files()
@@ -610,18 +625,22 @@ class WFDiff(object):
                                                      misfits.__all__])))
             misfit_functions[m_type] = fct
 
-        if os.path.exists(output_directory):
-            raise ValueError("Directory '%s' already exists." %
-                             output_directory)
+        # Only rank 0 handles directory creation to avoid race conditions.
+        if COMM.rank == 0:
+            # If the output directory exists, remove it completely to ensure a
+            # clean state. shutil.rmtree is used as it can remove non-empty
+            # directories, unlike os.rmdir().
+            if os.path.exists(output_directory):
+                shutil.rmtree(output_directory)
+            os.makedirs(output_directory)
 
+        # Wait for rank 0 to finish creating the directory.
         COMM.barrier()
 
         debug_folder = os.path.join(output_directory, "debug_plots")
 
-        # Rank zero figures out what to do and distributes it.
+        # Rank zero creates the debug folder if necessary.
         if COMM.rank == 0:
-            os.makedirs(output_directory)
-
             if save_debug_plots:
                 if not os.path.exists(debug_folder):
                     os.makedirs(debug_folder)
@@ -660,6 +679,7 @@ class WFDiff(object):
 
             # Rotate
             if self.rotate_RTZ is True:
+                logger.info("Rotating horizontal components from NE to RT.")
                 # Compute back_azimuth using event info and add it to trace.stats
                 # And then rotate
                 st_high = add_event_station_info(st_high, self.event, self.stations)
@@ -688,28 +708,66 @@ class WFDiff(object):
                     data_units=self.data_units,
                     desired_units=self.desired_analysis_units)
 
+                # FFT calculation for new subplots
+                npts = tr_high.stats.npts
+                delta = tr_high.stats.delta
+                freq_axis = np.fft.rfftfreq(npts, d=delta)
+                spec_high = np.fft.rfft(tr_high.data)
+                spec_low = np.fft.rfft(tr_low.data)
+                amp_high = np.abs(spec_high)
+                amp_low = np.abs(spec_low)
+                spec_diff = np.abs(amp_high - amp_low)
+                # Cumulative RMS of the difference
+                rms_diff_sq = np.cumsum(spec_diff**2)
+                if rms_diff_sq[-1] > 0:
+                    rms_diff_normalized = np.sqrt(rms_diff_sq / rms_diff_sq[-1])
+                else:
+                    rms_diff_normalized = np.zeros_like(rms_diff_sq)
+
+                # Find cutoff frequency at 30% of total RMS
+                cutoff_freq_30 = None
+                if rms_diff_sq[-1] > 0:
+                    try:
+                        cutoff_index_30 = np.where(rms_diff_normalized >= 0.3)[0][0]
+                        cutoff_freq_30 = freq_axis[cutoff_index_30]
+                    except IndexError:
+                        pass
+
                 # Calculate each misfit for a range of periods.
                 collected_misfits = defaultdict(list)
 
                 stnm_tag =  job.network + '.' + job.station + '.' + component
                 if save_debug_plots:
+                    raw_misfits = {}
+                    for name, fct in misfit_functions.items():
+                        mfs = fct(tr_low, tr_high)
+                        if isinstance(mfs, dict):
+                            mfs = [mfs]
+                        for mf in mfs:
+                            raw_misfits[mf["name"]] = mf["value"]
                     plt.close()
                     plt.style.use("ggplot")
-                    plt.figure(figsize=(10, len(self.periods)))
-                    plt.subplot(len(self.periods) + 1, 1, 1)
-                    plt.subplots_adjust(left=0.0, right=1.0, top=1.0,
-                                        bottom=0.0, wspace=0.0, hspace=0.0)
+                    num_period_plots = len(self.periods)
+                    num_extra_plots = 3
+                    total_subplots = 1 + num_period_plots + num_extra_plots
+                    plt.figure(figsize=(12, total_subplots * 2.5), constrained_layout=True)
+                    plt.subplot(total_subplots, 1, 1)
                     plt.plot(tr_high.data, color="red", label=self.trace_tags[1])
                     plt.plot(tr_low.data, color="blue", label=self.trace_tags[0])
-                    plt.legend(fontsize=8, loc=3)
-                        # x-axis tick-marks and labels
+                    plt.legend(fontsize=12, loc=3)
+                    # x-axis tick-marks and labels
                     xtick_len = 20
-                    locs = np.arange(self.starttime/tr_low.stats.delta,
-                                     self.endtime/tr_low.stats.delta + 1,
-                                     xtick_len/tr_low.stats.delta)
-                    labels = map(str, locs*tr_low.stats.delta)
-                    plt.xticks(locs)
+                    # Calculate the time values for the ticks.
+                    start_tick = np.ceil(self.starttime / xtick_len) * xtick_len
+                    tick_times = np.arange(start_tick, self.endtime + 1, xtick_len)
+                    # Calculate the sample indices (locations) for these ticks.
+                    locs = (tick_times - self.starttime) / tr_low.stats.delta
+                    # The labels for the ticks
+                    labels = [str(int(t)) for t in tick_times]
+                    plt.xticks(locs, labels, fontsize=12)
                     plt.yticks([])
+                    plt.xlabel("Time (s)", fontsize=12)
+                    plt.ylabel("Amplitude", fontsize=12)
 
                     ax = plt.gca()
                     ax.text(0.02, 0.95, stnm_tag, transform=ax.transAxes,
@@ -717,6 +775,14 @@ class WFDiff(object):
                             bbox=dict(boxstyle="round", fc="w", alpha=0.8))
                     ax.text(0.02, 0.65, "raw", transform=ax.transAxes,
                             fontdict=dict(fontsize="small", ha='left', va='top'),
+                            bbox=dict(boxstyle="round", fc="w", alpha=0.8))
+
+                    keys = sorted(raw_misfits.keys())
+                    txt = ["%s: %g" % (key, raw_misfits[key]) for key in keys]
+                    ax.text(0.98, 0.95, "\n".join(txt),
+                            ha="right", transform=ax.transAxes,
+                            fontdict=dict(fontsize="small", ha='right',
+                                          va='top'),
                             bbox=dict(boxstyle="round", fc="w", alpha=0.8))
 
                 # Loop over various periods
@@ -740,7 +806,7 @@ class WFDiff(object):
                             this_misfits[mf["name"]] = mf["value"]
 
                     if save_debug_plots:
-                        plt.subplot(len(self.periods) + 1, 1, _i + 2)
+                        plt.subplot(total_subplots, 1, _i + 2)
                         plt.plot(h_tr.data, color="red")
                         plt.plot(l_tr.data, color="blue")
                         # x-axis label
@@ -748,28 +814,113 @@ class WFDiff(object):
                             plt.xticks(locs, labels)
                             plt.tick_params(labelbottom='off',labeltop='on')
                         else:
-                            plt.xticks(locs)
+                            plt.xticks(locs, [''] * len(locs))
                         plt.yticks([])
                         ax = plt.gca()
-                        ax.text(0.02, 0.95, "Lowpass period: %.1f" % period,
+                        ax.set_xlabel("Time (s)", fontsize=12)
+                        ax.set_ylabel("Amplitude", fontsize=12)
+                        ax.text(0.02, 0.95, "Lowpass frequency: %.2f Hz" % float(1/period),
                                 transform=ax.transAxes,
-                                fontdict=dict(fontsize="small", ha='left',
+                                fontdict=dict(fontsize=12, ha='left',
                                               va='top'),
                                 bbox=dict(boxstyle="round", fc="w", alpha=0.8))
                         keys = sorted(this_misfits.keys())
                         txt = ["%s: %g" % (key, this_misfits[key]) for key in keys]
                         ax.text(0.98, 0.95, "\n".join(txt),
                                 ha="right", transform=ax.transAxes,
-                                fontdict=dict(fontsize="small", ha='right',
+                                fontdict=dict(fontsize=12, ha='right',
                                               va='top'),
                                 bbox=dict(boxstyle="round", fc="w", alpha=0.8))
 
                 if save_debug_plots:
+                    def logsmooth(x, y, n_bins=1000):
+                        # This function apply log scale smoothing in the frequency domain
+                        pos_mask = x > 0
+                        if not np.any(pos_mask):
+                            return np.array([]), np.array([])
+                        x_pos, y_pos = x[pos_mask], y[pos_mask]
+                        log_x = np.log10(x_pos)
+                        log_bins = np.linspace(log_x.min(), log_x.max(), n_bins)
+                        bin_idxs = np.digitize(log_x, log_bins)
+                        smooth_y = np.array([y_pos[bin_idxs == i].mean() if np.any(bin_idxs == i) else np.nan
+                                             for i in range(1, len(log_bins))])
+                        smooth_log_x = (log_bins[:-1] + log_bins[1:]) / 2
+                        smooth_x = 10**smooth_log_x
+                        valid_bins = ~np.isnan(smooth_y)
+                        return smooth_x[valid_bins], smooth_y[valid_bins]
+
+                    smooth_freq_high, smooth_amp_high = logsmooth(freq_axis, amp_high)
+                    smooth_freq_low, smooth_amp_low = logsmooth(freq_axis, amp_low)
+                    smooth_freq_diff, smooth_spec_diff = logsmooth(freq_axis, spec_diff)
+
+                    # Plot 1: Smoothed Amplitude Spectrum
+                    ax_spec = plt.subplot(total_subplots, 1, 1 + num_period_plots + 1)
+                    ax_spec.plot(smooth_freq_high, smooth_amp_high, color="red", label=self.trace_tags[1])
+                    ax_spec.plot(smooth_freq_low, smooth_amp_low, color="blue", label=self.trace_tags[0])
+                    ax_spec.set_xscale('log')
+                    ax_spec.set_xlim(self.f_min, self.f_max)
+                    ax_spec.set_title("Amplitude Spectrum", fontsize=14)
+                    ax_spec.set_xlabel("Frequency (Hz)", fontsize=12)
+                    ax_spec.set_ylabel("Amplitude", fontsize=12)
+                    for period in self.periods:
+                        freq = 1.0 / period
+                        ax_spec.axvline(freq, color='grey', linestyle='--')
+                        ax_spec.text(freq, ax_spec.get_ylim()[0], f' {freq:.2f}', rotation=90, va='bottom', fontsize=8)
+                    ax_spec.legend(fontsize=12)
+                    ax_spec.grid(True, which="both", ls="-", alpha=0.5)
+                    mask_high = (smooth_freq_high >= 0.01) & (smooth_freq_high <= 10)
+                    mask_low = (smooth_freq_low >= 0.01) & (smooth_freq_low <= 10)
+                    if np.any(mask_high) and np.any(mask_low):
+                        min_val = min(np.min(smooth_amp_high[mask_high]), np.min(smooth_amp_low[mask_low]))
+                        max_val = max(np.max(smooth_amp_high[mask_high]), np.max(smooth_amp_low[mask_low]))
+
+                    # Plot 2: Smoothed Spectrum Difference
+                    ax_diff = plt.subplot(total_subplots, 1, 1 + num_period_plots + 2)
+                    ax_diff.plot(smooth_freq_diff, smooth_spec_diff, color="purple")
+                    ax_diff.set_xscale('log')
+                    #ax_diff.set_yscale('log')
+                    ax_diff.set_xlim(self.f_min, self.f_max)
+                    ax_diff.set_title("Spectrum Difference (Absolute)", fontsize=14)
+                    ax_diff.set_xlabel("Frequency (Hz)", fontsize=12)
+                    ax_diff.set_ylabel("Amplitude Difference", fontsize=12)
+                    for period in self.periods:
+                        freq = 1.0 / period
+                        ax_diff.axvline(freq, color='grey', linestyle='--')
+                        ax_diff.text(freq, ax_diff.get_ylim()[0], f' {freq:.2f}', rotation=90, va='bottom', fontsize=8)
+                    ax_diff.grid(True, which="both", ls="-", alpha=0.5)
+                    mask_diff = (smooth_freq_diff >= 0.01) & (smooth_freq_diff <= 10)
+                    if np.any(mask_diff):
+                        min_val_diff = np.min(smooth_spec_diff[mask_diff])
+                        max_val_diff = np.max(smooth_spec_diff[mask_diff])
+
+                    # Plot 3: Cumulative RMS
+                    ax_rms = plt.subplot(total_subplots, 1, 1 + num_period_plots + 3)
+                    ax_rms.plot(freq_axis, rms_diff_normalized, color="green")
+                    ax_rms.axhline(0.3, color='grey', linestyle='--')
+                    if cutoff_freq_30 is not None:
+                        ax_rms.axvline(cutoff_freq_30, color='r', linestyle='--',
+                                       label=f'30% RMS at {cutoff_freq_30:.2f} Hz')
+                        ax_rms.legend()
+                    ax_rms.set_xscale('log')
+                    ax_rms.set_xlim(self.f_min, self.f_max)
+                    ax_rms.set_ylim(-0.1, 1.05)
+                    title = "Cumulative of Spectrum Difference Squared"
+                    if cutoff_freq_30 is not None:
+                        title += f' (30% RMS at {cutoff_freq_30:.2f} Hz)'
+                    ax_rms.set_title(title, fontsize=14)
+                    ax_rms.set_xlabel("Frequency (Hz)", fontsize=12)
+                    ax_rms.set_ylabel("Norm Cum Spec Diff Sq", fontsize=12)
+                    for period in self.periods:
+                        freq = 1.0 / period
+                        ax_rms.axvline(freq, color='grey', linestyle='--')
+                        ax_rms.text(freq, -0.08, f' {freq:.2f}', rotation=90, va='bottom', fontsize=8)
+                    ax_rms.grid(True, which="both", ls="-", alpha=0.5)
+
                     filename = os.path.join(
                         debug_folder,
                         "%s_%s_%s.%s" % (job.network, job.station,
                                          component, output_format))
-                    plt.savefig(filename)
+                    plt.savefig(filename,dpi=300)
 
                 # Now assemble a frequency dependent misfit measurement for each
                 # final misfit type.

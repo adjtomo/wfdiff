@@ -360,7 +360,10 @@ class WaveformDataSet(object):
     def get_coordinates(self, network, station):
         row = self._stations[(self._stations["station"] == station) &
                              (self._stations["network"] == network)]
-        return float(row.latitude), float(row.longitude)
+        # Assuming only one entry that matches this pair
+        latitude = float(row.latitude.values[0])
+        longitude = float(row.longitude.values[0])
+        return latitude, longitude
 
     def get(self, network, station, component):
         ds_high = self.dataset_high[(network, station, component)]

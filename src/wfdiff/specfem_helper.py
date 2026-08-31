@@ -37,7 +37,10 @@ def read_specfem_stations_file(filename):
     data = pandas.io.parsers.read_table(
         filename, sep=r"\s+", header=None,
         names=["station", "network", "latitude", "longitude", "elevation",
-               "depth"])
+               "depth"],
+        dtype={"station": str, "network": str, "latitude": float, 
+               "longitude": float, "elevation": float, "depth": float}
+        )
     return data
 
 

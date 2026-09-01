@@ -172,7 +172,7 @@ def plot_map(items, threshold, threshold_is_upper_limit,
     lat_mean = (lat_plot.min() + lat_plot.max())/2
     lon_mean = (lon_plot.min() + lon_plot.max())/2
 
-    m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
+    m = get_basemap(np.ptp(lon_plot), np.ptp(lat_plot), lon_mean,
                     lat_mean) 
 
     x, y, _ = m.projection.transform_points(ccrs.PlateCarree(), np.asanyarray(longitudes), np.asanyarray(latitudes)).T

@@ -269,7 +269,7 @@ class Results(object):
                     "misfit_pretty_name"],
                 filename=os.path.join(
                     output_directory,
-                    "%s_minres_peiord_map_%s.%s" % (misfit, component, output_format)),
+                    "%s_minres_period_map_%s.%s" % (misfit, component, output_format)),
                 event=event)
 
     def plot_misfit_maps(self, thresholds, output_directory, event=None, output_format='pdf'):

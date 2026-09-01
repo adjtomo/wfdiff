@@ -232,7 +232,7 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
     lat_mean = (lat_plot.min() + lat_plot.max())/2
     lon_mean = (lon_plot.min() + lon_plot.max())/2
 
-    m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
+    m = get_basemap(np.ptp(lon_plot), np.ptp(lat_plot), lon_mean,
                     lat_mean) 
     x, y, _ = m.projection.transform_points(ccrs.PlateCarree(), np.asanyarray(longitudes), np.asanyarray(latitudes)).T
     plt.close()
@@ -256,13 +256,14 @@ def plot_misfit_map(items, component, pretty_misfit_name, filename, event=None):
 
     for i in range(len(items[0]["periods"])):
         ax = axes[i]
-        m = get_basemap(lon_plot.ptp(), lat_plot.ptp(), lon_mean,
+
+        m = get_basemap(np.ptp(lon_plot), np.ptp(lat_plot), lon_mean,
                         lat_mean, stepsize=4, resolution='110m', ax=ax)
         data = m.scatter(x, y, c=misfit_all[:,i], s=30, vmin=misfit_all.min(),
                          vmax=misfit_all.max(), cmap=cm, alpha=0.9, zorder=10)
         # Add beachball
         if event is not None:
-            b = beach(ev_mt, xy=(ex, ey), width=int(8000*event.magnitudes[0].mag), 
+            b = beach(ev_mt, xy=(ex[0], ey[0]), width=int(8000*event.magnitudes[0].mag), 
                       linewidth=.5, facecolor='deepskyblue')
             ax.add_collection(b)
 

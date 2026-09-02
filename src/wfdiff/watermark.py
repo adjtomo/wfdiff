@@ -14,7 +14,7 @@ from __future__ import (absolute_import, division, print_function,
 from future.builtins import *  # NOQA
 
 from multiprocessing import cpu_count
-from pkg_resources import get_distribution
+from importlib.metadata import version
 import platform
 from socket import gethostname
 from time import strftime
@@ -43,7 +43,7 @@ def get_watermark():
         "time": str(strftime('%H:%M:%S')),
         "timezone": str(strftime('%Z'))}
 
-    watermark["module_versions"] = {
-        module: str(get_distribution(module).version) for module in modules}
+    watermark["module_versions"] = {module: version(module) 
+                                    for module in modules}
 
     return watermark
